@@ -8,24 +8,31 @@ A production-ready, full-stack citizen engagement and grievance redressal platfo
 
 ```
 smart-public-complaint/
-├── src/                          # React + TypeScript Modular Frontend
-│   ├── App.tsx                   # Lightweight root router (~60 lines)
-│   ├── index.css                 # Clean design tokens and responsive styles
-│   ├── components/
-│   │   ├── common/               # Reusable UI (Icon, Brand, Status, Spinner, ErrorBanner)
-│   │   ├── layout/               # Navigation & topbars (Sidebar, Topbar, AdminSidebar, AdminTopbar)
-│   │   ├── auth/                 # Route guards (RequireAuth, RequireAdmin)
-│   │   ├── chat/                 # Floating AI chatbot (JanSahayakChat)
-│   │   ├── map/                  # OpenStreetMap components (ComplaintsMapView, LocationPickerMap)
-│   │   └── profile/              # Modals (EditProfile, Language, Notification, Privacy, Help, Terms)
-│   ├── pages/
-│   │   ├── auth/                 # Auth pages (AuthPage - Login & Register)
-│   │   ├── citizen/              # Citizen portal (Home, Complaints, Details, Map, Notifications, Profile, ReportFlow)
-│   │   └── admin/                # Admin portal (Overview, Queue, Details, Depts, Reports, Audit, Staff, Citizens, Escalations, Map, Settings, Help)
-│   ├── utils/                    # Helper utilities (csvExport, priorityPredictor)
-│   ├── hooks/                    # React Context & custom hooks (useAuth, usePreferences)
-│   ├── services/                 # Centralized Axios API services
-│   └── types/                    # TypeScript interfaces & domain types
+├── frontend/                     # React 19 + TypeScript Modular Frontend
+│   ├── src/                      # Source code
+│   │   ├── App.tsx               # Lightweight root router (~60 lines)
+│   │   ├── index.css             # Clean design tokens and responsive styles
+│   │   ├── components/
+│   │   │   ├── common/           # Reusable UI (Icon, Brand, Status, Spinner, ErrorBanner)
+│   │   │   ├── layout/           # Navigation & topbars (Sidebar, Topbar, AdminSidebar, AdminTopbar)
+│   │   │   ├── auth/             # Route guards (RequireAuth, RequireAdmin)
+│   │   │   ├── chat/             # Floating AI chatbot (JanSahayakChat)
+│   │   │   ├── map/              # OpenStreetMap components (ComplaintsMapView, LocationPickerMap)
+│   │   │   └── profile/          # Modals (EditProfile, Language, Notification, Privacy, Help, Terms)
+│   │   ├── pages/
+│   │   │   ├── auth/             # Auth pages (AuthPage - Login & Register)
+│   │   │   ├── citizen/          # Citizen portal (Home, Complaints, Details, Map, Notifications, Profile, ReportFlow)
+│   │   │   └── admin/            # Admin portal (Overview, Queue, Details, Depts, Reports, Audit, Staff, Citizens, Escalations, Map, Settings, Help)
+│   │   ├── utils/                # Helper utilities (csvExport, priorityPredictor)
+│   │   ├── hooks/                # React Context & custom hooks (useAuth, usePreferences)
+│   │   ├── services/             # Centralized Axios API services
+│   │   └── types/                # TypeScript interfaces & domain types
+│   ├── public/                   # Static assets & JanSeva favicon
+│   ├── index.html                # Vite HTML shell
+│   ├── vite.config.ts            # Vite 8 build configuration
+│   ├── tsconfig.json             # TypeScript config
+│   ├── .env.example              # Frontend environment template
+│   └── package.json              # Frontend dependencies and scripts
 ├── backend/                      # Python FastAPI Backend
 │   ├── app/
 │   │   ├── main.py               # FastAPI entrypoint, CORS, exception handlers
@@ -40,8 +47,8 @@ smart-public-complaint/
 │   ├── requirements.txt          # Backend dependencies
 │   ├── .env.example              # Environment variables template (No secrets)
 │   └── uploads/                  # Secure file evidence storage directory (.gitkeep)
-├── vite.config.ts                # Vite 8 build configuration
-├── package.json                  # Frontend dependencies and scripts
+├── package.json                  # Root runner scripts (forwards dev & build)
+├── .gitignore                    # Comprehensive secrets & cache ignore rules
 └── README.md                     # Documentation and setup guide
 ```
 

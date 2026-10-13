@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.cache/
+.vite/
+*.tsbuildinfo
+*-debug.log*
+logs/
+*.log
+
+# Environment variables
+.env
+.env.*
+.env.local
+!.env.example
