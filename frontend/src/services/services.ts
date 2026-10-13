@@ -200,18 +200,34 @@ export const userService = {
 // Notifications
 // ---------------------------------------------------------------------------
 
+let notifCache: { data: Notification[]; timestamp: number } | null = null;
+
 export const notificationService = {
+  getCached(): Notification[] | null {
+    if (notifCache && Date.now() - notifCache.timestamp < 60000) {
+      return notifCache.data;
+    }
+    return null;
+  },
+
   async list(): Promise<Notification[]> {
     const { data } = await api.get<Notification[]>("/notifications");
+    notifCache = { data, timestamp: Date.now() };
     return data;
   },
 
   async markAllRead(): Promise<void> {
     await api.post("/notifications/mark-all-read");
+    if (notifCache) {
+      notifCache.data = notifCache.data.map(n => ({ ...n, is_read: true }));
+    }
   },
 
   async markRead(id: number): Promise<void> {
     await api.patch(`/notifications/${id}/read`);
+    if (notifCache) {
+      notifCache.data = notifCache.data.map(n => n.id === id ? ({ ...n, is_read: true }) : n);
+    }
   },
 };
 

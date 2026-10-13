@@ -5,13 +5,14 @@ import { notificationService } from "../../services/services";
 import type { Notification } from "../../types";
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = notificationService.getCached();
+  const [notifications, setNotifications] = useState<Notification[]>(() => cached || []);
+  const [loading, setLoading] = useState(() => !cached);
 
   const fetch = useCallback(async () => {
-    setLoading(true);
     try {
-      setNotifications(await notificationService.list());
+      const data = await notificationService.list();
+      setNotifications(data);
     } catch {
       /**/
     } finally {
