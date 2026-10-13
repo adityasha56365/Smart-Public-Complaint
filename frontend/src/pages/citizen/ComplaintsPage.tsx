@@ -9,15 +9,17 @@ import type { Complaint } from "../../types";
 
 export default function ComplaintsPage({ openDetail, openReport }: { openDetail: (id: number) => void; openReport: () => void }) {
   const { t } = usePreferences();
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // Instant render from cache to avoid 0-flashing
+  const cached = complaintService.getCached({ page: 1, page_size: 50 }) || complaintService.getCached({ page_size: 50 });
+  const [complaints, setComplaints] = useState<Complaint[]>(() => cached?.items || []);
+  const [loading, setLoading] = useState(() => complaints.length === 0);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [total, setTotal] = useState(0);
+  const [total, setTotal] = useState(() => cached?.total || complaints.length);
 
   const fetchComplaints = useCallback(async () => {
-    setLoading(true);
     try {
       const params: Record<string, string | number> = { page: 1, page_size: 50 };
       if (statusFilter !== "all") {

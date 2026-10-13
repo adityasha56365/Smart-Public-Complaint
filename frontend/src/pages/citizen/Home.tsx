@@ -12,14 +12,16 @@ import type { Complaint } from "../../types";
 export default function Home({ openReport, openDetail }: { openReport: () => void; openDetail: (id: number) => void }) {
   const { user } = useAuth();
   const { t } = usePreferences();
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Use cached complaints if available to render instantly without 0-flicker
+  const cached = complaintService.getCached({ page_size: 50 }) || complaintService.getCached({ page: 1, page_size: 50 });
+  const [complaints, setComplaints] = useState<Complaint[]>(() => cached?.items || []);
+  const [loading, setLoading] = useState(() => complaints.length === 0);
   const [error, setError] = useState("");
 
   const fetchComplaints = useCallback(async () => {
-    setLoading(true);
     try {
-      const res = await complaintService.list({ page_size: 3 });
+      const res = await complaintService.list({ page_size: 50 });
       setComplaints(res.items);
     } catch {
       setError("Failed to load complaints.");

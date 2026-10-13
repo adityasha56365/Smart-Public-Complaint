@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.deps import get_current_user, require_officer
 from app.core.utils import generate_reference_number
@@ -143,7 +143,7 @@ def list_complaints(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Complaint)
+    q = db.query(Complaint).options(joinedload(Complaint.category))
     # Citizens only see their own complaints
     if current_user.role == UserRole.citizen:
         q = q.filter(Complaint.citizen_id == current_user.id)
@@ -162,7 +162,18 @@ def list_complaints(
 
 @router.get("/{complaint_id}", response_model=ComplaintDetail)
 def get_complaint(complaint_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    c = db.query(Complaint).filter(Complaint.id == complaint_id).first()
+    c = (
+        db.query(Complaint)
+        .options(
+            joinedload(Complaint.category),
+            selectinload(Complaint.attachments),
+            selectinload(Complaint.assignments),
+            selectinload(Complaint.status_history),
+            selectinload(Complaint.comments),
+        )
+        .filter(Complaint.id == complaint_id)
+        .first()
+    )
     if not c:
         raise HTTPException(status_code=404, detail="Complaint not found")
     if current_user.role == UserRole.citizen and c.citizen_id != current_user.id:

@@ -39,14 +39,36 @@ export interface ComplaintFilters {
   search?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Complaints Cache (in-memory SWR to prevent 0-flashing on page switches)
+// ---------------------------------------------------------------------------
+let complaintsCache: Record<string, { data: PaginatedResponse<Complaint>; timestamp: number }> = {};
+const CACHE_TTL_MS = 60000; // 60s cache
+
 export const complaintService = {
+  getCached(filters: ComplaintFilters = {}): PaginatedResponse<Complaint> | null {
+    const key = JSON.stringify(filters);
+    const hit = complaintsCache[key];
+    if (hit && Date.now() - hit.timestamp < CACHE_TTL_MS) {
+      return hit.data;
+    }
+    return null;
+  },
+
+  clearCache() {
+    complaintsCache = {};
+  },
+
   async create(payload: CreateComplaintPayload): Promise<Complaint> {
     const { data } = await api.post<Complaint>("/complaints", payload);
+    complaintsCache = {}; // invalidate cache so new complaint appears immediately
     return data;
   },
 
   async list(filters: ComplaintFilters = {}): Promise<PaginatedResponse<Complaint>> {
+    const key = JSON.stringify(filters);
     const { data } = await api.get<PaginatedResponse<Complaint>>("/complaints", { params: filters });
+    complaintsCache[key] = { data, timestamp: Date.now() };
     return data;
   },
 
