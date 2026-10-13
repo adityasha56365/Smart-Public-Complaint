@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, ".")
 
 from app.core.security import hash_password
-from app.db.session import SessionLocal
+from app.db.session import SessionLocal, Base, engine
 from app.models.models import (
     ComplaintCategory,
     Department,
@@ -41,6 +41,8 @@ DEFAULT_CATEGORIES = [
 
 
 def seed(email: str, password: str, full_name: str = "Super Administrator"):
+    # Ensure all tables exist before inserting records
+    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         # Create departments

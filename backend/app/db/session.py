@@ -4,11 +4,26 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.core.config import settings
 
+import os
+
+is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+engine_kwargs = {
+    "pool_pre_ping": True,
+}
+
+if is_serverless:
+    # Serverless: Lean connection pool per serverless instance to prevent exhausting Neon pooler
+    engine_kwargs["pool_size"] = 2
+    engine_kwargs["max_overflow"] = 3
+    engine_kwargs["pool_recycle"] = 300
+else:
+    engine_kwargs["pool_size"] = 10
+    engine_kwargs["max_overflow"] = 20
+    engine_kwargs["pool_recycle"] = 1800
+
 engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
+    settings.clean_database_url,
+    **engine_kwargs,
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

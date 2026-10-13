@@ -1,7 +1,11 @@
 /** Centralized Axios API client with auth token injection and 401 handling. */
 import axios, { AxiosError, AxiosResponse } from "axios";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+// In production unified deployment, VITE_API_BASE_URL can be empty or omitted for same-origin /api/v1.
+// In development, default to http://localhost:8000.
+// If backend is deployed separately, set VITE_API_BASE_URL to https://your-backend.vercel.app.
+const rawBase = import.meta.env.VITE_API_BASE_URL;
+const BASE_URL = rawBase !== undefined ? rawBase.replace(/\/+$/, "") : (import.meta.env.DEV ? "http://localhost:8000" : "");
 
 export const api = axios.create({
   baseURL: `${BASE_URL}/api/v1`,

@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     APP_ENV: str = "development"
     DATABASE_URL: str = "postgresql+psycopg2://civicly_user:changeme@localhost:5432/civicly_db"
-    SECRET_KEY: str = secrets.token_hex(32)
+    SECRET_KEY: str = "civicly-production-secret-key-change-in-env-at-least-32chars"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     FRONTEND_ORIGINS: str = "http://localhost:8443,http://localhost:5173"
@@ -30,13 +30,33 @@ class Settings(BaseSettings):
     AI_MODEL: str = "gemini-3.1-flash-lite"  # Model name (e.g. gemini-3.1-flash-lite / gemini-3.5-flash)
 
     @property
+    def clean_database_url(self) -> str:
+        """Normalize PostgreSQL URL for Neon and SQLAlchemy with psycopg2 and SSL."""
+        url = self.DATABASE_URL.strip()
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql+psycopg2://", 1)
+        elif url.startswith("postgresql://") and not url.startswith("postgresql+"):
+            url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+
+        # Neon and remote databases require SSL connection
+        if "localhost" not in url and "127.0.0.1" not in url and "sslmode" not in url:
+            separator = "&" if "?" in url else "?"
+            url = f"{url}{separator}sslmode=require"
+        return url
+
+    @property
     def allowed_origins(self) -> List[str]:
         return [o.strip() for o in self.FRONTEND_ORIGINS.split(",") if o.strip()]
 
     @property
     def upload_path(self) -> Path:
-        backend_dir = Path(__file__).resolve().parent.parent.parent
-        p = backend_dir / self.UPLOAD_DIR
+        import os
+        # In Vercel / AWS Lambda serverless runtime, filesystem is read-only except /tmp
+        if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+            p = Path("/tmp") / self.UPLOAD_DIR
+        else:
+            backend_dir = Path(__file__).resolve().parent.parent.parent
+            p = backend_dir / self.UPLOAD_DIR
         p.mkdir(parents=True, exist_ok=True)
         return p
 
