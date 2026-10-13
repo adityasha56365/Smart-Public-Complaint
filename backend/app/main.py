@@ -1,4 +1,4 @@
-"""FastAPI application entry point."""
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -17,13 +17,29 @@ from app.api.v1.admin import (
 )
 from app.core.config import settings
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Ensure database schema tables exist on startup."""
+    try:
+        from app.db.session import Base, engine
+        import app.models.models  # noqa: F401
+        Base.metadata.create_all(bind=engine)
+    except Exception as exc:
+        print(f"Warning: Database auto-table creation failed: {exc}")
+    yield
+
+
 app = FastAPI(
     title="Civicly — Smart Public Complaint API",
     description="Backend API for the Civicly citizen complaint management platform.",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    redirect_slashes=False,
+    lifespan=lifespan,
 )
+
 
 # ---------------------------------------------------------------------------
 # CORS
@@ -38,20 +54,20 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------------------------
-# Routers
+# Routers (register both /api/v1 and /v1 so Vercel rewrite variants always resolve)
 # ---------------------------------------------------------------------------
-PREFIX = "/api/v1"
+for pfx in ["/api/v1", "/v1"]:
+    app.include_router(auth_router, prefix=pfx)
+    app.include_router(chat_router, prefix=pfx)
+    app.include_router(complaints_router, prefix=pfx)
+    app.include_router(offices_router, prefix=pfx)
+    app.include_router(dept_router, prefix=pfx)
+    app.include_router(cat_router, prefix=pfx)
+    app.include_router(users_router, prefix=pfx)
+    app.include_router(notif_router, prefix=pfx)
+    app.include_router(admin_router, prefix=pfx)
+    app.include_router(audit_router, prefix=pfx)
 
-app.include_router(auth_router, prefix=PREFIX)
-app.include_router(chat_router, prefix=PREFIX)
-app.include_router(complaints_router, prefix=PREFIX)
-app.include_router(offices_router, prefix=PREFIX)
-app.include_router(dept_router, prefix=PREFIX)
-app.include_router(cat_router, prefix=PREFIX)
-app.include_router(users_router, prefix=PREFIX)
-app.include_router(notif_router, prefix=PREFIX)
-app.include_router(admin_router, prefix=PREFIX)
-app.include_router(audit_router, prefix=PREFIX)
 
 
 # ---------------------------------------------------------------------------
