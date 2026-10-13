@@ -75,6 +75,8 @@ for pfx in ["/api/v1", "/v1"]:
 # Health check & Root
 # ---------------------------------------------------------------------------
 @app.get("/", tags=["health"])
+@app.get("/api", tags=["health"])
+@app.get("/api/", tags=["health"])
 @app.get("/health", tags=["health"])
 @app.get("/api/health", tags=["health"])
 def health():
