@@ -1,0 +1,76 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Production builds & cache
+dist/
+build/
+.cache/
+.vite/
+vite.config.*.timestamp-*
+*.tsbuildinfo
+
+# Logs & debugging
+*-debug.log*
+logs/
+*.log
+.claude-replay.*
+.tmp-*
+
+# Secrets and environment variables (ALWAYS ignored)
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+backend/.env.*
+backend/.env.local
+
+# Allow example environment templates so new clones have them
+!.env.example
+!backend/.env.example
+
+# Python virtual environment
+backend/venv/
+venv/
+.venv/
+env/
+ENV/
+
+# Python bytecode and testing caches
+__pycache__/
+backend/**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+backend/.pytest_cache/
+.coverage
+htmlcov/
+
+# Local databases and SQLite files
+*.sqlite
+*.sqlite3
+*.db
+backend/*.db
+
+# Uploaded user media files
+backend/uploads/*
+!backend/uploads/.gitkeep
+uploads/*
+!uploads/.gitkeep
+
+# Operating system & Editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+
+# Figma cache (if ever recreated)
+.figma/
+/.plugins/
+/.opencode-skills/

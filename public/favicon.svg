@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="shieldGrad" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0f766e"/>
+      <stop offset="100%" stop-color="#115e59"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="20" y1="18" x2="44" y2="46" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2dd4bf"/>
+      <stop offset="100%" stop-color="#14b8a6"/>
+    </linearGradient>
+    <filter id="shadow" x="4" y="4" width="56" height="56" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0f766e" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  
+  <!-- Outer Civic Shield -->
+  <path d="M32 6L11 15V29C11 44.5 20.2 54.3 32 58C43.8 54.3 53 44.5 53 29V15L32 6Z" fill="url(#shieldGrad)" filter="url(#shadow)"/>
+  
+  <!-- Inner Shield Glow -->
+  <path d="M32 10L15 17.5V29C15 41.8 22.4 50.4 32 53.6C41.6 50.4 49 41.8 49 29V17.5L32 10Z" fill="white" fill-opacity="0.12"/>
+  
+  <!-- Pillars / Civic Building Architecture Mark -->
+  <path d="M22 38H42M25 38V28M32 38V25M39 38V28M20 42H44" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Verified Civic Redressal Checkmark Badge -->
+  <circle cx="43" cy="21" r="9" fill="#10b981" stroke="#ffffff" stroke-width="2.2"/>
+  <path d="M39.5 21L42 23.5L46.5 18.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
