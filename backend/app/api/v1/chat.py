@@ -109,7 +109,9 @@ class ComplaintStatusResponse(BaseModel):
 
 def _get_ai_provider() -> Optional[str]:
     provider = getattr(settings, "AI_PROVIDER", "").lower()
-    api_key = getattr(settings, "AI_API_KEY", "")
+    api_key = getattr(settings, "AI_API_KEY", "") or getattr(settings, "GEMINI_API_KEY", "")
+    if not provider and (getattr(settings, "GEMINI_API_KEY", "") or getattr(settings, "AI_API_KEY", "")):
+        provider = "google"
     if provider and api_key:
         return provider
     return None
@@ -119,11 +121,11 @@ def _call_ai(system_prompt: str, history: List[ChatMessage], user_message: str) 
     provider = _get_ai_provider()
     if not provider:
         return None
-    api_key = getattr(settings, "AI_API_KEY", "")
+    api_key = getattr(settings, "AI_API_KEY", "") or getattr(settings, "GEMINI_API_KEY", "")
     model = getattr(settings, "AI_MODEL", "")
     try:
         if provider == "google":
-            return _call_google_gemini(api_key, model or "gemini-1.5-flash", system_prompt, history, user_message)
+            return _call_google_gemini(api_key, model or "gemini-3.1-flash-lite", system_prompt, history, user_message)
         elif provider == "openai":
             return _call_openai(api_key, model or "gpt-4o-mini", system_prompt, history, user_message)
         else:
@@ -134,23 +136,56 @@ def _call_ai(system_prompt: str, history: List[ChatMessage], user_message: str) 
         return None
 
 
-def _call_google_gemini(api_key, model, system_prompt, history, user_message):
-    import urllib.request
-    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+def _call_google_gemini(api_key: str, model: str, system_prompt: str, history: List[ChatMessage], user_message: str) -> Optional[str]:
+    import httpx
+
+    candidate_models = [m for m in [model, "gemini-3.1-flash-lite"] if m]
+    seen = set()
+    models_to_try = []
+    for m in candidate_models:
+        if m not in seen:
+            seen.add(m)
+            models_to_try.append(m)
+
     contents = []
     for msg in history[-20:]:
         role = "user" if msg.role == "user" else "model"
         contents.append({"role": role, "parts": [{"text": msg.content}]})
     contents.append({"role": "user", "parts": [{"text": user_message}]})
-    payload = json.dumps({
+
+    payload = {
         "system_instruction": {"parts": [{"text": system_prompt}]},
         "contents": contents,
-        "generationConfig": {"maxOutputTokens": 1024, "temperature": 0.7},
-    }).encode()
-    req = urllib.request.Request(endpoint, data=payload, headers={"Content-Type": "application/json"}, method="POST")
-    with urllib.request.urlopen(req, timeout=20) as resp:
-        data = json.loads(resp.read())
-    return data["candidates"][0]["content"]["parts"][0]["text"]
+        "generationConfig": {
+            "maxOutputTokens": 1024,
+            "temperature": 0.7,
+            "thinkingConfig": {"thinkingBudget": 0},
+        },
+    }
+
+    last_error = None
+    for target_model in models_to_try:
+        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{target_model}:generateContent?key={api_key}"
+        try:
+            with httpx.Client(timeout=8.0) as client:
+                resp = client.post(endpoint, json=payload)
+            if resp.status_code == 200:
+                data = resp.json()
+                candidates = data.get("candidates", [])
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    if parts and "text" in parts[0]:
+                        return parts[0]["text"]
+            else:
+                logger.warning("Gemini model %s returned status %d: %s", target_model, resp.status_code, resp.text[:200])
+        except Exception as exc:
+            last_error = exc
+            logger.warning("Gemini model %s failed: %s; trying fallback model", target_model, exc)
+            continue
+
+    if last_error:
+        raise last_error
+    return None
 
 
 def _call_openai(api_key, model, system_prompt, history, user_message):

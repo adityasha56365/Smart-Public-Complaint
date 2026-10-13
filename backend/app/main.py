@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from app.api.v1.auth import router as auth_router
 from app.api.v1.chat import router as chat_router
 from app.api.v1.complaints import router as complaints_router
+from app.api.v1.offices import router as offices_router
 from app.api.v1.admin import (
     admin_router,
     audit_router,
@@ -44,6 +45,7 @@ PREFIX = "/api/v1"
 app.include_router(auth_router, prefix=PREFIX)
 app.include_router(chat_router, prefix=PREFIX)
 app.include_router(complaints_router, prefix=PREFIX)
+app.include_router(offices_router, prefix=PREFIX)
 app.include_router(dept_router, prefix=PREFIX)
 app.include_router(cat_router, prefix=PREFIX)
 app.include_router(users_router, prefix=PREFIX)

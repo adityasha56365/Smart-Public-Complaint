@@ -56,7 +56,7 @@ export interface DraftSubmitResult {
 
 export const chatService = {
   async sendMessage(req: ChatRequest): Promise<ChatResponse> {
-    const { data } = await api.post<ChatResponse>("/chat", req, { timeout: 30000 });
+    const { data } = await api.post<ChatResponse>("/chat", req, { timeout: 45000 });
     return data;
   },
 

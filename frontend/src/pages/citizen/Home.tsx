@@ -6,6 +6,7 @@ import ErrorBanner from "../../components/common/ErrorBanner";
 import { useAuth } from "../../hooks/useAuth";
 import { usePreferences } from "../../hooks/usePreferences";
 import { complaintService } from "../../services/services";
+import NearestPublicOffices from "../../components/offices/NearestPublicOffices";
 import type { Complaint } from "../../types";
 
 export default function Home({ openReport, openDetail }: { openReport: () => void; openDetail: (id: number) => void }) {
@@ -170,6 +171,9 @@ export default function Home({ openReport, openDetail }: { openReport: () => voi
           </div>
         </section>
       </div>
+
+      {/* Nearest Important Public Offices Interactive Feature */}
+      <NearestPublicOffices />
     </div>
   );
 }

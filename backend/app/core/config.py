@@ -24,9 +24,10 @@ class Settings(BaseSettings):
     MAPS_API_KEY: str = ""
 
     # AI Chatbot (JanSahayak AI)
-    AI_PROVIDER: str = ""   # "google" | "openai" | leave blank for rule-based fallback
-    AI_API_KEY: str = ""    # API key for the selected provider (NEVER expose to frontend)
-    AI_MODEL: str = ""      # Optional: defaults per provider (gemini-1.5-flash / gpt-4o-mini)
+    AI_PROVIDER: str = "google"   # "google" | "openai" | leave blank for rule-based fallback
+    AI_API_KEY: str = ""          # API key for the selected provider (NEVER expose to frontend)
+    GEMINI_API_KEY: str = ""      # Direct alias for Google Gemini API key
+    AI_MODEL: str = "gemini-3.1-flash-lite"  # Model name (e.g. gemini-3.1-flash-lite / gemini-3.5-flash)
 
     @property
     def allowed_origins(self) -> List[str]:

@@ -623,3 +623,45 @@ body.dark-mode .helpline-item {
 .priority-dot.priority-medium { background: var(--warning); }
 .priority-dot.priority-high   { background: var(--error); }
 .priority-dot.priority-critical { background: #8b0000; }
+
+/* ── Nearest Important Public Offices Feature ────────────────────────── */
+.nearest-offices-feature {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px 22px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+.nearest-offices-feature .custom-office-pin {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.nearest-offices-feature .custom-office-pin:hover {
+  transform: scale(1.22) translateY(-2px);
+  z-index: 999 !important;
+}
+
+.nearest-offices-feature .leaflet-popup-content-wrapper {
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  padding: 2px;
+}
+
+body.dark-mode .nearest-offices-feature {
+  background: #0f2334;
+  border-color: #1e3b52;
+}
+
+body.dark-mode .nearest-offices-feature input,
+body.dark-mode .nearest-offices-feature select {
+  background: #091724;
+  border-color: #1e3b52;
+  color: #f1f5f9;
+}
+
+body.dark-mode .nearest-offices-feature .leaflet-popup-content-wrapper {
+  background: #0f2334;
+  color: #f1f5f9;
+}
+
