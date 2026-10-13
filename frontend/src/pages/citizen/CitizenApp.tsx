@@ -11,6 +11,7 @@ import NotificationsPage from "./NotificationsPage";
 import ProfilePage from "./ProfilePage";
 import ReportFlow from "./ReportFlow";
 import LanguageModal from "../../components/profile/LanguageModal";
+import HelpCentreModal from "../../components/profile/HelpCentreModal";
 import JanSahayakChat from "../../components/chat/JanSahayakChat";
 import { useAuth } from "../../hooks/useAuth";
 import { usePreferences } from "../../hooks/usePreferences";
@@ -18,19 +19,26 @@ import { notificationService } from "../../services/services";
 
 export default function CitizenApp() {
   const { logout } = useAuth();
-  const { language, setLanguage } = usePreferences();
+  const { language, setLanguage, t } = usePreferences();
   const [langModalOpen, setLangModalOpen] = useState(false);
+  const [helpModalOpen, setHelpModalOpen] = useState(false);
   const navigate = useNavigate();
   const [active, setActive] = useState("home");
   const [reportOpen, setReportOpen] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
-  const pageTitle = useMemo(() => navItems.find(n => n.id === active)?.label || "Home", [active]);
+
+  const currentNav = useMemo(() => navItems.find((n) => n.id === active), [active]);
+  const pageTitle = useMemo(() => {
+    if (detailId != null) return t("complaint_details", "Complaint details");
+    if (currentNav) return t(currentNav.labelKey, currentNav.label);
+    return "JanSeva";
+  }, [detailId, currentNav, t]);
 
   useEffect(() => {
     notificationService
       .list()
-      .then(ns => setUnreadCount(ns.filter(n => !n.is_read).length))
+      .then((ns) => setUnreadCount(ns.filter((n) => !n.is_read).length))
       .catch(() => {});
   }, []);
 
@@ -56,26 +64,40 @@ export default function CitizenApp() {
 
   return (
     <div className="app-shell">
-      <Sidebar active={active} onChange={id => { setActive(id); setDetailId(null); }} unreadCount={unreadCount} />
+      <Sidebar
+        active={active}
+        onChange={(id) => {
+          setActive(id);
+          setDetailId(null);
+        }}
+        unreadCount={unreadCount}
+        onHelp={() => setHelpModalOpen(true)}
+      />
       <main className="main">
         <Topbar
-          title={detailId != null ? "Complaint details" : pageTitle}
+          title={pageTitle}
           onBell={() => setActive("notifications")}
           onLanguage={() => setLangModalOpen(true)}
-          onProfile={() => { setActive("profile"); setDetailId(null); }}
+          onProfile={() => {
+            setActive("profile");
+            setDetailId(null);
+          }}
           langCode={language.code}
         />
         {content}
       </main>
       <nav className="mobile-nav">
-        {navItems.slice(0, 5).map(item => (
+        {navItems.slice(0, 5).map((item) => (
           <button
             key={item.id}
             className={active === item.id ? "active" : ""}
-            onClick={() => { setActive(item.id); setDetailId(null); }}
+            onClick={() => {
+              setActive(item.id);
+              setDetailId(null);
+            }}
           >
             <Icon name={item.icon} />
-            <span>{item.label.split(" ")[0]}</span>
+            <span>{t(item.labelKey, item.label).split(" ")[0]}</span>
           </button>
         ))}
       </nav>
@@ -88,7 +110,17 @@ export default function CitizenApp() {
           onToast={() => {}}
         />
       )}
-      <button className="mobile-fab" onClick={() => setReportOpen(true)} aria-label="Report a problem">
+      {helpModalOpen && (
+        <HelpCentreModal
+          onClose={() => setHelpModalOpen(false)}
+          onToast={() => {}}
+        />
+      )}
+      <button
+        className="mobile-fab"
+        onClick={() => setReportOpen(true)}
+        aria-label="Report a problem"
+      >
         <Icon name="plus" />
       </button>
       {/* JanSahayak AI — floating chatbot */}

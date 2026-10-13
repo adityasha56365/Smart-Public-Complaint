@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
+import { PreferencesProvider } from "./hooks/usePreferences";
 import RequireAuth from "./components/auth/RequireAuth";
 import RequireAdmin from "./components/auth/RequireAdmin";
 import AuthPage from "./pages/auth/AuthPage";
@@ -57,7 +58,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <PreferencesProvider>
+          <AppRoutes />
+        </PreferencesProvider>
       </AuthProvider>
     </BrowserRouter>
   );

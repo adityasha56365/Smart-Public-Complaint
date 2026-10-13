@@ -1,8 +1,9 @@
 /**
- * Preferences Hook — manages language, accessibility, notifications, and privacy settings
- * with localStorage persistence and live DOM updates.
+ * Preferences Context & Hook — manages language, accessibility, notifications, and privacy settings
+ * with reactive global state, translation helper `t()`, localStorage persistence, and live DOM updates.
  */
-import { useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { translate } from "../utils/translations";
 
 export interface LanguageOption {
   code: string;
@@ -75,7 +76,22 @@ const DEFAULT_PRIVACY: PrivacySettings = {
   twoFactor: false,
 };
 
-export function usePreferences() {
+interface PreferencesContextValue {
+  language: LanguageOption;
+  setLanguage: (opt: LanguageOption) => void;
+  accessibility: AccessibilitySettings;
+  updateAccessibility: (patch: Partial<AccessibilitySettings>) => void;
+  resetAccessibility: () => void;
+  notifications: NotificationSettings;
+  updateNotifications: (patch: Partial<NotificationSettings>) => void;
+  privacy: PrivacySettings;
+  updatePrivacy: (patch: Partial<PrivacySettings>) => void;
+  t: (key: string, fallback?: string) => string;
+}
+
+const PreferencesContext = createContext<PreferencesContextValue | null>(null);
+
+export function PreferencesProvider({ children }: { children: React.ReactNode }) {
   // 1. Language
   const [language, setLanguageState] = useState<LanguageOption>(() => {
     try {
@@ -107,24 +123,20 @@ export function usePreferences() {
 
   const applyAccessibilityDOM = (settings: AccessibilitySettings) => {
     if (typeof document === "undefined") return;
-    // Font scale
     document.documentElement.style.fontSize = `${(settings.fontSizePercent / 100) * 16}px`;
 
-    // High Contrast
     if (settings.highContrast) {
       document.body.classList.add("high-contrast");
     } else {
       document.body.classList.remove("high-contrast");
     }
 
-    // Reduce Motion
     if (settings.reduceMotion) {
       document.body.classList.add("reduce-motion");
     } else {
       document.body.classList.remove("reduce-motion");
     }
 
-    // Dark Mode
     if (settings.theme === "dark") {
       document.body.classList.add("dark-mode");
     } else {
@@ -193,15 +205,52 @@ export function usePreferences() {
     });
   }, []);
 
-  return {
-    language,
-    setLanguage,
-    accessibility,
-    updateAccessibility,
-    resetAccessibility,
-    notifications,
-    updateNotifications,
-    privacy,
-    updatePrivacy,
-  };
+  // Translation helper
+  const t = useCallback(
+    (key: string, fallback?: string): string => {
+      return translate(language.code, key, fallback);
+    },
+    [language.code]
+  );
+
+  return (
+    <PreferencesContext.Provider
+      value={{
+        language,
+        setLanguage,
+        accessibility,
+        updateAccessibility,
+        resetAccessibility,
+        notifications,
+        updateNotifications,
+        privacy,
+        updatePrivacy,
+        t,
+      }}
+    >
+      {children}
+    </PreferencesContext.Provider>
+  );
+}
+
+export function usePreferences() {
+  const ctx = useContext(PreferencesContext);
+  if (!ctx) {
+    // Graceful fallback if called outside PreferencesProvider
+    const savedCode = typeof localStorage !== "undefined" ? localStorage.getItem("civicly_lang") || "EN" : "EN";
+    const currentLang = SUPPORTED_LANGUAGES.find(l => l.code === savedCode) || SUPPORTED_LANGUAGES[0];
+    return {
+      language: currentLang,
+      setLanguage: () => {},
+      accessibility: DEFAULT_ACCESSIBILITY,
+      updateAccessibility: () => {},
+      resetAccessibility: () => {},
+      notifications: DEFAULT_NOTIFICATIONS,
+      updateNotifications: () => {},
+      privacy: DEFAULT_PRIVACY,
+      updatePrivacy: () => {},
+      t: (key: string, fallback?: string) => translate(currentLang.code, key, fallback),
+    };
+  }
+  return ctx;
 }

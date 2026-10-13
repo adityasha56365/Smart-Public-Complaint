@@ -3,10 +3,12 @@ import Icon, { IconName } from "../../components/common/Icon";
 import Status from "../../components/common/Status";
 import Spinner from "../../components/common/Spinner";
 import ErrorBanner from "../../components/common/ErrorBanner";
+import { usePreferences } from "../../hooks/usePreferences";
 import { complaintService } from "../../services/services";
 import type { Complaint } from "../../types";
 
 export default function ComplaintsPage({ openDetail, openReport }: { openDetail: (id: number) => void; openReport: () => void }) {
+  const { t } = usePreferences();
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -55,32 +57,32 @@ export default function ComplaintsPage({ openDetail, openReport }: { openDetail:
     <div className="page">
       <div className="page-intro">
         <div>
-          <span className="eyebrow">YOUR REPORTS</span>
-          <h2>My complaints</h2>
-          <p>Track progress and review updates from civic teams.</p>
+          <span className="eyebrow">{t("your_reports", "YOUR REPORTS")}</span>
+          <h2>{t("my_complaints", "My complaints")}</h2>
+          <p>{t("complaints_desc", "Track progress and review updates from civic teams.")}</p>
         </div>
         <button className="primary-button" onClick={openReport}>
-          <Icon name="plus" /> New complaint
+          <Icon name="plus" /> {t("new_complaint", "New complaint")}
         </button>
       </div>
       <div className="toolbar">
         <div className="search">
           <Icon name="search" />
           <input
-            aria-label="Search complaints"
-            placeholder="Search by title or reference number"
+            aria-label={t("search_placeholder", "Search by title or reference number")}
+            placeholder={t("search_placeholder", "Search by title or reference number")}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
         <button className={`filter ${statusFilter === "all" ? "active" : ""}`} onClick={() => setStatusFilter("all")}>
-          All <span>{total}</span>
+          {t("filter_all", "All")} <span>{total}</span>
         </button>
         <button className={`filter ${statusFilter === "active" ? "active" : ""}`} onClick={() => setStatusFilter("active")}>
-          Active <span>{activeCount}</span>
+          {t("filter_active", "Active")} <span>{activeCount}</span>
         </button>
         <button className={`filter ${statusFilter === "resolved" ? "active" : ""}`} onClick={() => setStatusFilter("resolved")}>
-          Resolved <span>{resolvedCount}</span>
+          {t("filter_resolved", "Resolved")} <span>{resolvedCount}</span>
         </button>
       </div>
       <section className="panel complaint-table">
@@ -106,7 +108,7 @@ export default function ComplaintsPage({ openDetail, openReport }: { openDetail:
         {!loading && complaints.length === 0 && (
           <div style={{ padding: "32px", textAlign: "center", color: "var(--muted)" }}>
             <Icon name="file" size={32} />
-            <p style={{ marginTop: 12, fontSize: 13 }}>No complaints found.</p>
+            <p style={{ marginTop: 12, fontSize: 13 }}>{t("no_complaints_found", "No complaints found.")}</p>
           </div>
         )}
       </section>

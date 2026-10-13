@@ -23,6 +23,7 @@ export default function ProfilePage({ onLogout }: { onLogout: () => void }) {
     updateNotifications,
     privacy,
     updatePrivacy,
+    t,
   } = usePreferences();
 
   const [confirming, setConfirming] = useState(false);
@@ -56,37 +57,37 @@ export default function ProfilePage({ onLogout }: { onLogout: () => void }) {
     {
       id: "language",
       icon: "globe",
-      title: "Language",
+      title: t("settings_language", "Language"),
       subtitle: `${language.name} (${language.nativeName})`,
     },
     {
       id: "notifications",
       icon: "bell",
-      title: "Notifications",
+      title: t("settings_notifications", "Notifications"),
       subtitle: `${notifications.push ? "Push on" : "Push off"} • ${notifications.email ? "Email digest on" : "Email off"}`,
     },
     {
       id: "privacy",
       icon: "shield",
-      title: "Privacy & consent",
+      title: t("settings_privacy", "Privacy & consent"),
       subtitle: `${privacy.anonymousComplaints ? "Anonymous active" : "Standard identity"} • Manage data`,
     },
     {
       id: "help",
       icon: "help",
-      title: "Help centre",
+      title: t("settings_help", "Help centre"),
       subtitle: "FAQs, helplines & queries",
     },
     {
       id: "accessibility",
       icon: "settings",
-      title: "Accessibility",
+      title: t("settings_accessibility", "Accessibility"),
       subtitle: accessibilitySubtitle,
     },
     {
       id: "terms",
       icon: "file",
-      title: "Terms & policies",
+      title: t("settings_terms", "Terms & policies"),
       subtitle: "Citizen Charter, SLA & Privacy policy",
     },
   ];
@@ -95,9 +96,9 @@ export default function ProfilePage({ onLogout }: { onLogout: () => void }) {
     <div className="page">
       <div className="page-intro">
         <div>
-          <span className="eyebrow">ACCOUNT</span>
-          <h2>Profile &amp; settings</h2>
-          <p>Manage your preferences, privacy, language, and support options.</p>
+          <span className="eyebrow">{t("account_eyebrow", "ACCOUNT")}</span>
+          <h2>{t("profile_settings", "Profile & settings")}</h2>
+          <p>{t("profile_settings_desc", "Manage your preferences, privacy, language, and support options.")}</p>
         </div>
       </div>
 
@@ -123,7 +124,7 @@ export default function ProfilePage({ onLogout }: { onLogout: () => void }) {
               onClick={() => setActiveModal("edit-profile")}
               style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}
             >
-              <Icon name="user" size={13} /> Edit profile
+              <Icon name="user" size={13} /> {t("btn_edit_profile", "Edit profile")}
             </button>
           </div>
         </div>
@@ -133,7 +134,7 @@ export default function ProfilePage({ onLogout }: { onLogout: () => void }) {
         {settingsCards.map(s => (
           <button
             className="setting panel"
-            key={s.title}
+            key={s.id}
             type="button"
             onClick={() => setActiveModal(s.id)}
             aria-label={`Open ${s.title} settings`}
@@ -150,11 +151,11 @@ export default function ProfilePage({ onLogout }: { onLogout: () => void }) {
 
       <section className="logout-section">
         <div>
-          <strong>Sign out of Civicly</strong>
-          <p>You can sign in again anytime to track and report issues.</p>
+          <strong>{t("sign_out_title", "Sign out of JanSeva")}</strong>
+          <p>{t("sign_out_desc", "You can sign in again anytime to track and report issues.")}</p>
         </div>
         <button className="logout-button" type="button" onClick={() => setConfirming(true)}>
-          <Icon name="arrow" size={18} /> Log out
+          <Icon name="arrow" size={18} /> {t("btn_logout", "Log out")}
         </button>
       </section>
 

@@ -4,11 +4,13 @@ import Status from "../../components/common/Status";
 import Spinner from "../../components/common/Spinner";
 import ErrorBanner from "../../components/common/ErrorBanner";
 import { useAuth } from "../../hooks/useAuth";
+import { usePreferences } from "../../hooks/usePreferences";
 import { complaintService } from "../../services/services";
 import type { Complaint } from "../../types";
 
 export default function Home({ openReport, openDetail }: { openReport: () => void; openDetail: (id: number) => void }) {
   const { user } = useAuth();
+  const { t } = usePreferences();
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -30,7 +32,9 @@ export default function Home({ openReport, openDetail }: { openReport: () => voi
   }, [fetchComplaints]);
 
   const now = new Date();
-  const greeting = now.getHours() < 12 ? "Good morning" : now.getHours() < 18 ? "Good afternoon" : "Good evening";
+  const greetingKey = now.getHours() < 12 ? "good_morning" : now.getHours() < 18 ? "good_afternoon" : "good_evening";
+  const greetingFallback = now.getHours() < 12 ? "Good morning" : now.getHours() < 18 ? "Good afternoon" : "Good evening";
+  const greeting = t(greetingKey, greetingFallback);
   const firstName = user?.full_name?.split(" ")[0] || "there";
   const dateStr = now.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" });
 
@@ -53,16 +57,16 @@ export default function Home({ openReport, openDetail }: { openReport: () => voi
         <div>
           <span className="eyebrow">{dateStr}</span>
           <h2>{greeting}, {firstName}.</h2>
-          <p>Let&apos;s make your neighbourhood better, one report at a time.</p>
+          <p>{t("home_subtitle", "Let's make your neighbourhood better, one report at a time.")}</p>
         </div>
       </section>
       <section className="report-hero">
         <div className="hero-copy">
-          <span className="hero-kicker"><i></i> QUICK REPORTING</span>
-          <h2>Spot a problem<br />in your neighbourhood?</h2>
-          <p>Report it in under two minutes. Add a photo, confirm the location, and we&apos;ll route it to the right team.</p>
+          <span className="hero-kicker"><i></i> {t("quick_reporting", "QUICK REPORTING")}</span>
+          <h2>{t("hero_title", "Spot a problem in your neighbourhood?")}</h2>
+          <p>{t("hero_desc", "Report it in under two minutes. Add a photo, confirm the location, and we'll route it to the right team.")}</p>
           <button id="btn-report-problem" className="primary-button" onClick={openReport}>
-            <Icon name="plus" /> Report a problem <Icon name="arrow" />
+            <Icon name="plus" /> {t("report_btn", "Report a problem")} <Icon name="arrow" />
           </button>
         </div>
         <div className="civic-visual" aria-hidden="true">
@@ -79,15 +83,39 @@ export default function Home({ openReport, openDetail }: { openReport: () => voi
         </div>
       </section>
       <section className="stats-grid">
-        <div className="stat"><div className="stat-icon navy"><Icon name="file" /></div><div><span>Submitted</span><strong>{total}</strong><small>All time</small></div></div>
-        <div className="stat"><div className="stat-icon amber"><Icon name="clock" /></div><div><span>In progress</span><strong>{active}</strong><small>Active cases</small></div></div>
-        <div className="stat"><div className="stat-icon green"><Icon name="check" /></div><div><span>Resolved</span><strong>{resolved}</strong><small>{total > 0 ? Math.round((resolved / total) * 100) : 0}% resolution rate</small></div></div>
+        <div className="stat">
+          <div className="stat-icon navy"><Icon name="file" /></div>
+          <div>
+            <span>{t("stat_submitted", "Submitted")}</span>
+            <strong>{total}</strong>
+            <small>{t("stat_all_time", "All time")}</small>
+          </div>
+        </div>
+        <div className="stat">
+          <div className="stat-icon amber"><Icon name="clock" /></div>
+          <div>
+            <span>{t("stat_in_progress", "In progress")}</span>
+            <strong>{active}</strong>
+            <small>{t("stat_active_cases", "Active cases")}</small>
+          </div>
+        </div>
+        <div className="stat">
+          <div className="stat-icon green"><Icon name="check" /></div>
+          <div>
+            <span>{t("stat_resolved", "Resolved")}</span>
+            <strong>{resolved}</strong>
+            <small>{total > 0 ? Math.round((resolved / total) * 100) : 0}% {t("stat_resolution_rate", "resolution rate")}</small>
+          </div>
+        </div>
       </section>
       <div className="content-grid">
         <section className="panel active-complaints">
           <div className="section-head">
-            <div><span className="eyebrow">STAY INFORMED</span><h3>Active complaints</h3></div>
-            <button>View all <Icon name="arrow" size={17} /></button>
+            <div>
+              <span className="eyebrow">{t("stay_informed", "STAY INFORMED")}</span>
+              <h3>{t("active_complaints", "Active complaints")}</h3>
+            </div>
+            <button>{t("view_all", "View all")} <Icon name="arrow" size={17} /></button>
           </div>
           <div className="complaint-list">
             {loading && <div style={{ padding: 20 }}><Spinner /></div>}
@@ -111,15 +139,20 @@ export default function Home({ openReport, openDetail }: { openReport: () => voi
             })}
             {!loading && complaints.length === 0 && (
               <div style={{ padding: "24px", textAlign: "center", color: "var(--muted)" }}>
-                <p style={{ fontSize: 13 }}>No complaints yet. Report your first issue!</p>
-                <button className="primary-button" style={{ marginTop: 12 }} onClick={openReport}><Icon name="plus" /> Report a problem</button>
+                <p style={{ fontSize: 13 }}>{t("no_complaints_yet", "No complaints yet. Report your first issue!")}</p>
+                <button className="primary-button" style={{ marginTop: 12 }} onClick={openReport}>
+                  <Icon name="plus" /> {t("report_btn", "Report a problem")}
+                </button>
               </div>
             )}
           </div>
         </section>
         <section className="panel neighbourhood">
           <div className="section-head">
-            <div><span className="eyebrow">AROUND YOU</span><h3>Neighbourhood pulse</h3></div>
+            <div>
+              <span className="eyebrow">{t("around_you", "AROUND YOU")}</span>
+              <h3>{t("neighbourhood_pulse", "Neighbourhood pulse")}</h3>
+            </div>
             <button className="icon-only"><Icon name="arrow" /></button>
           </div>
           <div className="map-card">
@@ -132,8 +165,8 @@ export default function Home({ openReport, openDetail }: { openReport: () => voi
             <span className="you-dot"></span>
           </div>
           <div className="map-summary">
-            <div><strong>9</strong><span>open nearby</span></div>
-            <div><strong>14</strong><span>resolved this week</span></div>
+            <div><strong>9</strong><span>{t("open_nearby", "open nearby")}</span></div>
+            <div><strong>14</strong><span>{t("resolved_this_week", "resolved this week")}</span></div>
           </div>
         </section>
       </div>

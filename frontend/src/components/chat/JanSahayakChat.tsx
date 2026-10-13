@@ -34,6 +34,33 @@ function renderMarkdown(text: string): React.ReactNode {
   });
 }
 
+function RobotAvatarIcon({ size = 26 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ display: "inline-block", verticalAlign: "middle" }}
+    >
+      <rect x="3" y="7" width="18" height="13" rx="4" />
+      <circle cx="8.5" cy="12.5" r="1.5" fill="currentColor" />
+      <circle cx="15.5" cy="12.5" r="1.5" fill="currentColor" />
+      <path d="M9.5 16.5h5" />
+      <path d="M12 3v4" />
+      <circle cx="12" cy="2.5" r="1.2" fill="currentColor" />
+      <path d="M1.5 12.5h1.5" />
+      <path d="M21 12.5h1.5" />
+    </svg>
+  );
+}
+
+
 // ── Timestamp formatter ────────────────────────────────────────────────────
 function formatTime(d: Date): string {
   return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
@@ -488,12 +515,16 @@ export default function JanSahayakChat() {
         .jansahayak-reset:hover { background: rgba(255,255,255,0.1) !important; }
       `}</style>
 
-      {/* Floating Action Button */}
+      {/* Floating launcher button */}
       <button
-        className="jansahayak-fab"
+        type="button"
         id="btn-jansahayak-open"
-        onClick={() => { setOpen(o => !o); setHasNewMessage(false); }}
-        aria-label={open ? "Close JanSahayak AI" : "Open JanSahayak AI assistant"}
+        className="jansahayak-fab jansahayak-launcher"
+        onClick={() => {
+          setOpen(o => !o);
+          setHasNewMessage(false);
+        }}
+        aria-label={open ? "Close JanSahayak AI Assistant" : "Open JanSahayak AI Assistant"}
         style={{
           position: "fixed",
           bottom: 28,
@@ -511,12 +542,12 @@ export default function JanSahayakChat() {
           justifyContent: "center",
           boxShadow: "0 8px 32px rgba(23,50,77,0.28)",
           transition: "transform 0.2s, box-shadow 0.2s",
-          fontSize: 26,
+          fontSize: 24,
         }}
         onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.1)")}
         onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
       >
-        {open ? "✕" : "🤝"}
+        {open ? <span style={{ fontSize: 22, lineHeight: 1 }}>✕</span> : <RobotAvatarIcon size={30} />}
         {hasNewMessage && !open && (
           <span style={{
             position: "absolute", top: 0, right: 0,
@@ -560,9 +591,9 @@ export default function JanSahayakChat() {
                 width: 42, height: 42, borderRadius: "50%",
                 background: "rgba(255,255,255,0.15)",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 22, flexShrink: 0,
+                flexShrink: 0,
                 border: "2px solid rgba(255,255,255,0.25)",
-              }}>🤝</div>
+              }}><RobotAvatarIcon size={24} /></div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 800, fontSize: 15, fontFamily: "Manrope, sans-serif", letterSpacing: -0.3 }}>
                   JanSahayak AI
