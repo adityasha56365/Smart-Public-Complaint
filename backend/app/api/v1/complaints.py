@@ -136,7 +136,7 @@ def create_complaint(body: ComplaintCreate, db: Session = Depends(get_db), curre
 @router.get("", response_model=dict)
 def list_complaints(
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=500),
     status: Optional[str] = None,
     category_id: Optional[int] = None,
     search: Optional[str] = None,

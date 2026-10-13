@@ -87,10 +87,14 @@ export default function ComplaintsMapView({
       })
       .catch((err) => {
         if (isMounted) {
-          setError(
-            err.response?.data?.detail ||
-              "Could not load complaints from server. Please check your network connection."
-          );
+          const detail = err.response?.data?.detail;
+          const msg =
+            typeof detail === "string"
+              ? detail
+              : Array.isArray(detail)
+              ? detail.map((d: any) => d.msg || JSON.stringify(d)).join(", ")
+              : "Could not load complaints from server. Please check your network connection.";
+          setError(msg);
         }
       })
       .finally(() => {

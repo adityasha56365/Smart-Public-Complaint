@@ -127,7 +127,7 @@ def get_me(current_user: User = Depends(get_current_user)):
 @users_router.get("", response_model=dict)
 def list_users(
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(20, ge=1, le=500),
     role: Optional[str] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
