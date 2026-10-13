@@ -55,12 +55,20 @@ app.include_router(audit_router, prefix=PREFIX)
 
 
 # ---------------------------------------------------------------------------
-# Health check
 # ---------------------------------------------------------------------------
+# Health check & Root
+# ---------------------------------------------------------------------------
+@app.get("/", tags=["health"])
 @app.get("/health", tags=["health"])
 @app.get("/api/health", tags=["health"])
 def health():
-    return {"status": "ok", "env": settings.APP_ENV}
+    return {
+        "status": "ok",
+        "message": "Civicly API is running successfully on Vercel!",
+        "docs_url": "/docs",
+        "env": settings.APP_ENV,
+    }
+
 
 
 # ---------------------------------------------------------------------------
