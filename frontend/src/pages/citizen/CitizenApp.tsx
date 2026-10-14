@@ -14,6 +14,7 @@ import ReportFlow from "./ReportFlow";
 import LanguageModal from "../../components/profile/LanguageModal";
 import HelpCentreModal from "../../components/profile/HelpCentreModal";
 import JanSahayakChat from "../../components/chat/JanSahayakChat";
+import InstallAppPopup from "../../components/common/InstallAppPopup";
 import { useAuth } from "../../hooks/useAuth";
 import { usePreferences } from "../../hooks/usePreferences";
 import { notificationService } from "../../services/services";
@@ -156,6 +157,8 @@ export default function CitizenApp() {
       </button>
       {/* JanSahayak AI — floating chatbot */}
       <JanSahayakChat />
+      {/* Sleek PWA Install Popup Card */}
+      <InstallAppPopup />
     </div>
   );
 }
