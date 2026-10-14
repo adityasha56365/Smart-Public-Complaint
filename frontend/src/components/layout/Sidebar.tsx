@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import Icon, { IconName } from "../common/Icon";
 import Brand from "../common/Brand";
 import { usePreferences } from "../../hooks/usePreferences";
@@ -23,23 +24,53 @@ export default function Sidebar({
   onChange,
   unreadCount,
   onHelp,
+  isOpen = false,
+  onClose,
 }: {
   active: string;
   onChange: (id: string) => void;
   unreadCount: number;
   onHelp?: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }) {
   const { t } = usePreferences();
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  const handleSelect = (id: string) => {
+    onChange(id);
+    onClose?.();
+  };
+
   return (
-    <aside className="sidebar">
-      <Brand />
+    <aside className={`sidebar ${isOpen ? "open" : ""}`} aria-label="Main sidebar navigation">
+      <div className="sidebar-top">
+        <Brand />
+        {onClose && (
+          <button
+            type="button"
+            className="sidebar-close-btn"
+            onClick={onClose}
+            aria-label="Close navigation drawer"
+          >
+            <span aria-hidden="true">&times;</span>
+          </button>
+        )}
+      </div>
       <nav className="side-nav" aria-label="Main navigation">
         {navItems.map((item) => (
           <button
             key={item.id}
             className={active === item.id ? "active" : ""}
-            onClick={() => onChange(item.id)}
+            onClick={() => handleSelect(item.id)}
           >
             <Icon name={item.icon} />
             <span>{t(item.labelKey, item.label)}</span>
@@ -51,7 +82,14 @@ export default function Sidebar({
         <Icon name="help" />
         <strong>{t("need_help", "Need help?")}</strong>
         <p>{t("need_help_desc", "Find answers or speak with our support team.")}</p>
-        <button type="button" onClick={onHelp} aria-label="Visit help centre">
+        <button
+          type="button"
+          onClick={() => {
+            onClose?.();
+            onHelp?.();
+          }}
+          aria-label="Visit help centre"
+        >
           {t("visit_help_centre", "Visit help centre")} <Icon name="arrow" size={16} />
         </button>
       </div>

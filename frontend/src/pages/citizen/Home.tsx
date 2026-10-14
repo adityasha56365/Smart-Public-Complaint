@@ -3,6 +3,7 @@ import Icon, { IconName } from "../../components/common/Icon";
 import Status from "../../components/common/Status";
 import Spinner from "../../components/common/Spinner";
 import ErrorBanner from "../../components/common/ErrorBanner";
+import InstallAppButton from "../../components/common/InstallAppButton";
 import { useAuth } from "../../hooks/useAuth";
 import { usePreferences } from "../../hooks/usePreferences";
 import { complaintService } from "../../services/services";
@@ -68,9 +69,12 @@ export default function Home({ openReport, openDetail }: { openReport: () => voi
           <span className="hero-kicker"><i></i> {t("quick_reporting", "QUICK REPORTING")}</span>
           <h2>{t("hero_title", "Spot a problem in your neighbourhood?")}</h2>
           <p>{t("hero_desc", "Report it in under two minutes. Add a photo, confirm the location, and we'll route it to the right team.")}</p>
-          <button id="btn-report-problem" className="primary-button" onClick={openReport}>
-            <Icon name="plus" /> {t("report_btn", "Report a problem")} <Icon name="arrow" />
-          </button>
+          <div className="hero-actions-row">
+            <button id="btn-report-problem" className="primary-button" onClick={openReport}>
+              <Icon name="plus" /> {t("report_btn", "Report a problem")} <Icon name="arrow" />
+            </button>
+            <InstallAppButton variant="hero" />
+          </div>
         </div>
         <div className="civic-visual" aria-hidden="true">
           <div className="sun"></div>

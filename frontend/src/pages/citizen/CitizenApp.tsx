@@ -49,20 +49,29 @@ export default function CitizenApp() {
   };
 
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(["home"]));
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleTabChange = (id: string) => {
     setActive(id);
     setDetailId(null);
+    setSidebarOpen(false);
     setVisitedTabs((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
   };
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${sidebarOpen ? "menu-open" : ""}`}>
       <Sidebar
         active={active}
         onChange={handleTabChange}
         unreadCount={unreadCount}
         onHelp={() => setHelpModalOpen(true)}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+      <div
+        className="sidebar-scrim"
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden="true"
       />
       <main className="main">
         <Topbar
@@ -70,6 +79,7 @@ export default function CitizenApp() {
           onBell={() => handleTabChange("notifications")}
           onLanguage={() => setLangModalOpen(true)}
           onProfile={() => handleTabChange("profile")}
+          onMenu={() => setSidebarOpen(true)}
           langCode={language.code}
         />
         {detailId != null ? (

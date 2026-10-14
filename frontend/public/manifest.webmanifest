@@ -1,0 +1,57 @@
+{
+  "name": "Smart Public Complaint",
+  "short_name": "Smart Complaint",
+  "description": "Smart Public Grievance Redressal and Transport Challan Dispute Resolution Platform",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "window-controls-overlay"],
+  "orientation": "any",
+  "theme_color": "#087f8c",
+  "background_color": "#f7f8f5",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["government", "utilities", "productivity"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Register Complaint",
+      "short_name": "New Complaint",
+      "description": "File a new public grievance or civic issue",
+      "url": "/?action=new-complaint",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Dispute Challan",
+      "short_name": "Challan Dispute",
+      "description": "Challenge incorrect traffic challans with photo evidence",
+      "url": "/?tab=challan",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}
