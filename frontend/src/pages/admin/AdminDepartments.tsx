@@ -534,39 +534,44 @@ export default function AdminDepartments() {
           <table className="admin-table department-table">
             <thead>
               <tr>
-                <th>Department</th>
-                <th>Jurisdiction</th>
-                <th>Officers</th>
-                <th>Open cases</th>
-                <th>Resolution rate</th>
-                <th>Status</th>
-                <th style={{ textAlign: "right", paddingRight: 18 }}>Actions</th>
+                <th style={{ minWidth: 260, paddingLeft: 20 }}>Department</th>
+                <th style={{ minWidth: 170 }}>Jurisdiction</th>
+                <th style={{ minWidth: 80, textAlign: "center" }}>Officers</th>
+                <th style={{ minWidth: 90, textAlign: "center" }}>Open cases</th>
+                <th style={{ minWidth: 130 }}>Resolution rate</th>
+                <th style={{ minWidth: 100 }}>Status</th>
+                <th style={{ minWidth: 160, textAlign: "right", paddingRight: 20 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredDepts.map(d => (
                 <tr key={d.id}>
-                  <td>
-                    <span className="department-icon">
-                      <Icon name="building" />
-                    </span>
-                    <div>
-                      <strong style={{ fontSize: 12, color: "var(--navy)" }}>{d.name}</strong>
-                      <small style={{ display: "block", fontSize: 9, color: "var(--muted)", marginTop: 2 }}>
-                        {d.description || "No description provided"}
-                      </small>
+                  <td style={{ minWidth: 260, paddingLeft: 20 }}>
+                    <div className="department-cell-flex">
+                      <span className="department-icon">
+                        <Icon name="building" />
+                      </span>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <strong style={{ display: "block", fontSize: 13, fontWeight: 700, color: "var(--navy)", lineHeight: 1.3 }}>{d.name}</strong>
+                        <small style={{ display: "block", fontSize: 10, color: "var(--muted)", marginTop: 2, whiteSpace: "normal" }}>
+                          {d.description || "No description provided"}
+                        </small>
+                      </div>
                     </div>
                   </td>
-                  <td>
+                  <td style={{ minWidth: 170 }}>
                     {d.jurisdiction ? (
                       <span
                         style={{
-                          background: "#eef5f3",
+                          display: "inline-block",
+                          background: "#eef7f5",
                           color: "var(--teal)",
-                          padding: "3px 8px",
+                          border: "1px solid rgba(55,180,177,0.3)",
+                          padding: "4px 10px",
                           borderRadius: 6,
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: 700,
+                          whiteSpace: "nowrap",
                         }}
                       >
                         {d.jurisdiction}
@@ -575,21 +580,21 @@ export default function AdminDepartments() {
                       <span style={{ color: "var(--muted)", fontSize: 11 }}>—</span>
                     )}
                   </td>
-                  <td>
-                    <span style={{ fontWeight: 600, fontSize: 11 }}>{d.officer_count}</span>
+                  <td style={{ minWidth: 80, textAlign: "center" }}>
+                    <span style={{ fontWeight: 700, fontSize: 12, color: "var(--navy)" }}>{d.officer_count}</span>
                   </td>
-                  <td>
+                  <td style={{ minWidth: 90, textAlign: "center" }}>
                     <span
                       style={{
-                        color: d.open_count > 10 ? "var(--error)" : "inherit",
-                        fontWeight: d.open_count > 10 ? 700 : 500,
-                        fontSize: 11,
+                        color: d.open_count > 10 ? "var(--error)" : "var(--navy)",
+                        fontWeight: 700,
+                        fontSize: 12,
                       }}
                     >
                       {d.open_count}
                     </span>
                   </td>
-                  <td>
+                  <td style={{ minWidth: 130 }}>
                     <div className="progress-cell">
                       <span>
                         <i style={{ width: `${Math.min(100, Math.max(0, d.resolution_rate))}%` }}></i>
@@ -597,7 +602,7 @@ export default function AdminDepartments() {
                       <strong>{d.resolution_rate}%</strong>
                     </div>
                   </td>
-                  <td>
+                  <td style={{ minWidth: 100 }}>
                     <span className={`status ${d.is_active ? "resolved" : "rejected"}`}>
                       <span></span>
                       {d.is_active ? "Active" : "Inactive"}
