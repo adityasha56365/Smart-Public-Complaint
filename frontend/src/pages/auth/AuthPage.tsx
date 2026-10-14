@@ -44,7 +44,17 @@ export default function AuthPage() {
     try {
       if (mode === "login") {
         const authUser = await login(form.email, undefined, form.password);
-        if (authUser.role === "admin" || authUser.role === "supervisor" || authUser.role === "officer") {
+        if (
+          authUser.role === "transport_admin" ||
+          authUser.role === "transport_officer" ||
+          authUser.role === "transport_supervisor"
+        ) {
+          navigate("/transport-admin");
+        } else if (
+          authUser.role === "admin" ||
+          authUser.role === "supervisor" ||
+          authUser.role === "officer"
+        ) {
           navigate("/admin");
         } else {
           navigate("/");

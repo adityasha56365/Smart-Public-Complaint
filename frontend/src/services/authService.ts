@@ -15,6 +15,30 @@ export interface RegisterPayload {
   password: string;
 }
 
+export function isTokenValid(token?: string | null): boolean {
+  if (!token) return false;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return false;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    const payload = JSON.parse(jsonPayload);
+    if (typeof payload.exp === "number") {
+      const now = Math.floor(Date.now() / 1000);
+      return payload.exp > now + 5; // 5-second buffer
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export const authService = {
   async register(payload: RegisterPayload): Promise<User> {
     const { data } = await api.post<User>("/auth/register", payload);
@@ -55,11 +79,22 @@ export const authService = {
   },
 
   getStoredUser(): { id: number; full_name: string; role: string } | null {
+    if (!this.isAuthenticated()) {
+      return null;
+    }
     const raw = localStorage.getItem("user");
     return raw ? JSON.parse(raw) : null;
   },
 
   isAuthenticated(): boolean {
-    return !!localStorage.getItem("access_token");
+    const token = localStorage.getItem("access_token");
+    if (!token || !isTokenValid(token)) {
+      if (token) {
+        this.logout();
+      }
+      return false;
+    }
+    return true;
   },
 };
+

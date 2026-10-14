@@ -4,7 +4,7 @@ import { useAuth } from "../../hooks/useAuth";
 import Spinner from "../common/Spinner";
 
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   if (isLoading) {
     return (
       <div style={{ display: "grid", placeItems: "center", height: "100vh" }}>
@@ -13,5 +13,22 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
     );
   }
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  if (
+    user?.role === "transport_admin" ||
+    user?.role === "transport_officer" ||
+    user?.role === "transport_supervisor"
+  ) {
+    return <Navigate to="/transport-admin" replace />;
+  }
+
+  if (
+    user?.role === "admin" ||
+    user?.role === "supervisor" ||
+    user?.role === "officer"
+  ) {
+    return <Navigate to="/admin" replace />;
+  }
+
   return <>{children}</>;
 }

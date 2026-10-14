@@ -47,12 +47,12 @@ export default function ProfilePage({ onLogout }: { onLogout: () => void }) {
         const u = JSON.parse(localStorage.getItem("user") || "{}");
         return u.full_name || "";
       } catch { return ""; }
-    })() || "Aditya Sharma";
+    })() || "Citizen";
     const parts = name.trim().split(/\s+/).filter(Boolean);
     if (parts.length >= 2) {
       return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }
-    return (parts[0]?.slice(0, 2) || "AS").toUpperCase();
+    return (parts[0]?.slice(0, 2) || "CZ").toUpperCase();
   })();
   const avatarBg = localStorage.getItem("civicly_avatar_bg") || "#087f8c";
 

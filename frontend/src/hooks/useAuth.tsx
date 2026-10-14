@@ -63,10 +63,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Hydrate from localStorage on mount and fetch fresh profile
   useEffect(() => {
+    if (!authService.isAuthenticated()) {
+      authService.logout();
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+
     const stored = authService.getStoredUser();
-    if (stored && authService.isAuthenticated()) {
+    if (stored) {
       setUser(stored as AuthUser);
-      // Fetch latest profile in background
+      // Fetch latest profile in background and verify session is still active
       authService.me().then(u => {
         const fresh: AuthUser = {
           id: u.id,
@@ -77,7 +84,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         setUser(fresh);
         localStorage.setItem("user", JSON.stringify(fresh));
-      }).catch(() => {});
+      }).catch((err) => {
+        if (err?.response?.status === 401) {
+          authService.logout();
+          setUser(null);
+        }
+      });
+    } else {
+      authService.logout();
+      setUser(null);
     }
     setIsLoading(false);
   }, []);
