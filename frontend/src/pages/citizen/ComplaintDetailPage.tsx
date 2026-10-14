@@ -74,6 +74,15 @@ export default function ComplaintDetailPage({ id, close }: { id: number; close: 
             <div><span>Priority</span><strong style={{ textTransform: "capitalize" }}>{complaint.priority}</strong></div>
             <div><span>Responsible team</span><strong>{complaint.current_assignment?.department_name || "Unassigned"}</strong></div>
             <div><span>Assigned officer</span><strong>{complaint.current_assignment?.officer_name || "Unassigned"}</strong></div>
+            {complaint.contact_name && (
+              <div><span>Citizen</span><strong>{complaint.contact_name}</strong></div>
+            )}
+            {complaint.contact_phone && (
+              <div><span>Phone</span><strong>{complaint.contact_phone}</strong></div>
+            )}
+            {complaint.contact_email && (
+              <div><span>Email</span><strong>{complaint.contact_email}</strong></div>
+            )}
           </div>
           {complaint.rejection_reason && (
             <div style={{ marginTop: 16, padding: 12, background: "#fff5f5", borderRadius: 8, border: "1px solid #fcc" }}>

@@ -5,6 +5,7 @@ import Spinner from "../../components/common/Spinner";
 import ErrorBanner from "../../components/common/ErrorBanner";
 import { usePreferences } from "../../hooks/usePreferences";
 import { complaintService } from "../../services/services";
+import { getAttachmentUrl } from "../../services/api";
 import type { Complaint } from "../../types";
 
 export default function ComplaintsPage({ openDetail, openReport }: { openDetail: (id: number) => void; openReport: () => void }) {
@@ -94,11 +95,26 @@ export default function ComplaintsPage({ openDetail, openReport }: { openDetail:
           const icon = iconMap[c.category_name?.toLowerCase() || ""] || "building";
           const tone = toneMap[c.status] || "navy";
           const timeAgo = new Date(c.updated_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+          const firstAtt = c.attachments && c.attachments[0];
+          const thumbUrl = firstAtt?.data_url || (firstAtt?.url ? getAttachmentUrl(firstAtt.url) : null);
           return (
             <button className="complaint-row" key={c.id} onClick={() => openDetail(c.id)}>
-              <span className={`issue-icon ${tone}`}><Icon name={icon as IconName} /></span>
+              <span className={`issue-icon ${tone}`} style={{ overflow: "hidden", position: "relative" }}>
+                {thumbUrl && firstAtt?.attachment_type === "image" ? (
+                  <img src={thumbUrl} alt="evidence" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <Icon name={icon as IconName} />
+                )}
+              </span>
               <span className="complaint-main">
-                <span className="complaint-meta">{c.reference_number} · Updated {timeAgo}</span>
+                <span className="complaint-meta">
+                  {c.reference_number} · Updated {timeAgo}
+                  {c.attachments && c.attachments.length > 0 && (
+                    <span style={{ marginLeft: 8, color: "var(--teal)", fontWeight: 700, fontSize: 10, background: "#e8f4f0", padding: "1px 6px", borderRadius: 4 }}>
+                      📷 {c.attachments.length} {c.attachments.length > 1 ? "photos" : "photo"}
+                    </span>
+                  )}
+                </span>
                 <strong>{c.title}</strong>
                 <small><Icon name="pin" size={14} />{c.location_address || "Location not specified"}</small>
               </span>

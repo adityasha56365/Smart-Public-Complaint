@@ -1,9 +1,12 @@
 """Complaints CRUD API endpoints."""
+import base64
 import os
 import uuid
+from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload, selectinload
 
@@ -63,7 +66,33 @@ ALLOWED_MIME_TYPES = {
 }
 
 
-def _complaint_to_out(c: Complaint) -> ComplaintOut:
+def _attachment_to_out(att: ComplaintAttachment, complaint_id: int, request: Optional[Request] = None) -> AttachmentOut:
+    data_url = None
+    if att.file_data and att.attachment_type == AttachmentType.image and len(att.file_data) < 3_000_000:
+        data_url = f"data:{att.mime_type};base64,{att.file_data}"
+
+    if request:
+        base = str(request.base_url).rstrip("/")
+        url = f"{base}/api/v1/complaints/{complaint_id}/attachments/{att.id}/file"
+    elif settings.BACKEND_BASE_URL:
+        url = f"{settings.BACKEND_BASE_URL.rstrip('/')}/api/v1/complaints/{complaint_id}/attachments/{att.id}/file"
+    else:
+        url = f"/api/v1/complaints/{complaint_id}/attachments/{att.id}/file"
+
+    return AttachmentOut(
+        id=att.id,
+        original_filename=att.original_filename,
+        mime_type=att.mime_type,
+        size_bytes=att.size_bytes,
+        attachment_type=att.attachment_type,
+        created_at=att.created_at,
+        url=url,
+        data_url=data_url,
+    )
+
+
+def _complaint_to_out(c: Complaint, request: Optional[Request] = None) -> ComplaintOut:
+    atts = [_attachment_to_out(a, c.id, request) for a in (c.attachments or [])]
     return ComplaintOut(
         id=c.id,
         reference_number=c.reference_number,
@@ -82,6 +111,10 @@ def _complaint_to_out(c: Complaint) -> ComplaintOut:
         citizen_id=c.citizen_id,
         category_id=c.category_id,
         category_name=c.category.name if c.category else None,
+        contact_name=c.contact_name,
+        contact_email=c.contact_email,
+        contact_phone=c.contact_phone,
+        attachments=atts,
         created_at=c.created_at,
         updated_at=c.updated_at,
     )
@@ -93,7 +126,12 @@ def _notify(db: Session, user_id: int, complaint_id: int, title: str, message: s
 
 
 @router.post("", response_model=ComplaintOut, status_code=status.HTTP_201_CREATED)
-def create_complaint(body: ComplaintCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_complaint(
+    body: ComplaintCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     # Generate a unique reference number (retry on collision)
     for _ in range(5):
         ref = generate_reference_number()
@@ -113,6 +151,9 @@ def create_complaint(body: ComplaintCreate, db: Session = Depends(get_db), curre
         zone=body.zone,
         priority=body.priority,
         citizen_id=current_user.id,
+        contact_name=body.contact_name or current_user.full_name,
+        contact_email=str(body.contact_email) if body.contact_email else current_user.email,
+        contact_phone=body.contact_phone or current_user.phone,
         status=ComplaintStatus.submitted,
     )
     db.add(complaint)
@@ -130,11 +171,12 @@ def create_complaint(body: ComplaintCreate, db: Session = Depends(get_db), curre
             f"Your complaint '{complaint.title}' has been submitted. Reference: {ref}")
     db.commit()
     db.refresh(complaint)
-    return _complaint_to_out(complaint)
+    return _complaint_to_out(complaint, request)
 
 
 @router.get("", response_model=dict)
 def list_complaints(
+    request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=500),
     status: Optional[str] = None,
@@ -143,7 +185,10 @@ def list_complaints(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Complaint).options(joinedload(Complaint.category))
+    q = db.query(Complaint).options(
+        joinedload(Complaint.category),
+        selectinload(Complaint.attachments),
+    )
     # Citizens only see their own complaints
     if current_user.role == UserRole.citizen:
         q = q.filter(Complaint.citizen_id == current_user.id)
@@ -157,11 +202,16 @@ def list_complaints(
         )
     total = q.count()
     items = q.order_by(Complaint.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
-    return {"total": total, "page": page, "page_size": page_size, "items": [_complaint_to_out(c) for c in items]}
+    return {"total": total, "page": page, "page_size": page_size, "items": [_complaint_to_out(c, request) for c in items]}
 
 
 @router.get("/{complaint_id}", response_model=ComplaintDetail)
-def get_complaint(complaint_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_complaint(
+    complaint_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     c = (
         db.query(Complaint)
         .options(
@@ -192,19 +242,7 @@ def get_complaint(complaint_id: int, db: Session = Depends(get_db), current_user
             created_at=active_assign.created_at,
         )
 
-    base_url = settings.BACKEND_BASE_URL
-    attachments = [
-        AttachmentOut(
-            id=a.id,
-            original_filename=a.original_filename,
-            mime_type=a.mime_type,
-            size_bytes=a.size_bytes,
-            attachment_type=a.attachment_type,
-            created_at=a.created_at,
-            url=f"{base_url}/api/v1/complaints/{complaint_id}/attachments/{a.id}/file",
-        )
-        for a in c.attachments
-    ]
+    attachments = [_attachment_to_out(a, complaint_id, request) for a in c.attachments]
 
     history = [
         StatusHistoryOut(
@@ -257,9 +295,12 @@ def get_complaint(complaint_id: int, db: Session = Depends(get_db), current_user
         rejection_reason=c.rejection_reason,
         resolution_details=c.resolution_details,
         citizen_id=c.citizen_id,
-        citizen_name=c.citizen.full_name,
+        citizen_name=c.citizen.full_name if c.citizen else None,
         category_id=c.category_id,
         category_name=c.category.name if c.category else None,
+        contact_name=c.contact_name,
+        contact_email=c.contact_email,
+        contact_phone=c.contact_phone,
         created_at=c.created_at,
         updated_at=c.updated_at,
         attachments=attachments,
@@ -274,6 +315,7 @@ def get_complaint(complaint_id: int, db: Session = Depends(get_db), current_user
 def update_status(
     complaint_id: int,
     body: ComplaintStatusUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_officer),
 ):
@@ -308,13 +350,14 @@ def update_status(
             f"Your complaint '{c.title}' is now '{body.status.replace('_', ' ')}'.")
     db.commit()
     db.refresh(c)
-    return _complaint_to_out(c)
+    return _complaint_to_out(c, request)
 
 
 @router.post("/{complaint_id}/assign", response_model=ComplaintOut)
 def assign_complaint(
     complaint_id: int,
     body: ComplaintAssignRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_officer),
 ):
@@ -356,12 +399,13 @@ def assign_complaint(
     _notify(db, c.citizen_id, c.id, "Complaint assigned", f"Your complaint '{c.title}' has been assigned.")
     db.commit()
     db.refresh(c)
-    return _complaint_to_out(c)
+    return _complaint_to_out(c, request)
 
 
 @router.post("/{complaint_id}/attachments", status_code=status.HTTP_201_CREATED)
 async def upload_attachment(
     complaint_id: int,
+    request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -381,10 +425,17 @@ async def upload_attachment(
 
     ext = os.path.splitext(file.filename or "")[1].lower() or ".bin"
     stored_name = f"{uuid.uuid4().hex}{ext}"
-    upload_path = settings.upload_path / stored_name
-    with open(upload_path, "wb") as f_out:
-        f_out.write(contents)
 
+    # 1. Best-effort write to local disk
+    try:
+        upload_path = settings.upload_path / stored_name
+        with open(upload_path, "wb") as f_out:
+            f_out.write(contents)
+    except Exception:
+        pass
+
+    # 2. Persist in database as base64 so images NEVER get lost on Vercel or container restarts
+    b64_data = base64.b64encode(contents).decode("ascii")
     att_type = AttachmentType.video if file.content_type.startswith("video/") else AttachmentType.image
 
     att = ComplaintAttachment(
@@ -395,10 +446,20 @@ async def upload_attachment(
         size_bytes=len(contents),
         attachment_type=att_type,
         uploaded_by_id=current_user.id,
+        file_data=b64_data,
     )
     db.add(att)
     db.commit()
-    return {"id": att.id, "stored_filename": stored_name, "size_bytes": len(contents)}
+    db.refresh(att)
+
+    out = _attachment_to_out(att, complaint_id, request)
+    return {
+        "id": att.id,
+        "stored_filename": stored_name,
+        "size_bytes": len(contents),
+        "url": out.url,
+        "data_url": out.data_url,
+    }
 
 
 @router.get("/{complaint_id}/attachments/{attachment_id}/file")
@@ -407,21 +468,45 @@ def download_attachment(
     attachment_id: int,
     db: Session = Depends(get_db),
 ):
-    from fastapi.responses import FileResponse
     att = db.query(ComplaintAttachment).filter(
         ComplaintAttachment.id == attachment_id,
         ComplaintAttachment.complaint_id == complaint_id,
     ).first()
     if not att:
         raise HTTPException(status_code=404, detail="Attachment not found")
+
     file_path = settings.upload_path / att.stored_filename
-    if not file_path.exists():
-        fallback = Path(__file__).resolve().parent.parent.parent.parent / "uploads" / att.stored_filename
-        if fallback.exists():
-            file_path = fallback
-        else:
-            raise HTTPException(status_code=404, detail="File not found on server")
-    return FileResponse(path=str(file_path), media_type=att.mime_type, filename=att.original_filename)
+    if file_path.exists():
+        return FileResponse(path=str(file_path), media_type=att.mime_type, filename=att.original_filename)
+
+    # Serverless fallback: Serve directly from database-persisted base64
+    if att.file_data:
+        try:
+            raw_bytes = base64.b64decode(att.file_data)
+            # Re-seed local /tmp cache if possible
+            try:
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(file_path, "wb") as f_out:
+                    f_out.write(raw_bytes)
+            except Exception:
+                pass
+
+            return Response(
+                content=raw_bytes,
+                media_type=att.mime_type,
+                headers={
+                    "Content-Disposition": f'inline; filename="{att.original_filename}"',
+                    "Cache-Control": "public, max-age=86400",
+                },
+            )
+        except Exception:
+            pass
+
+    fallback = Path(__file__).resolve().parent.parent.parent.parent / "uploads" / att.stored_filename
+    if fallback.exists():
+        return FileResponse(path=str(fallback), media_type=att.mime_type, filename=att.original_filename)
+
+    raise HTTPException(status_code=404, detail="File not found on server")
 
 
 @router.post("/{complaint_id}/comments", response_model=CommentOut)

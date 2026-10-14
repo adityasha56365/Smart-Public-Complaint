@@ -8,6 +8,12 @@ import { categoryService, complaintService } from "../../services/services";
 import { predictPriority, PROBLEM_TYPES } from "../../utils/priorityPredictor";
 import type { Category } from "../../types";
 
+interface EvidenceItem {
+  id: string;
+  file: File;
+  preview: string;
+}
+
 export default function ReportFlow({ close, onSuccess }: { close: () => void; onSuccess?: (ref: string, id: number) => void }) {
   const { t } = usePreferences();
   const [step, setStep] = useState(1);
@@ -21,9 +27,30 @@ export default function ReportFlow({ close, onSuccess }: { close: () => void; on
   const [error, setError] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
   const [, setCreatedId] = useState<number | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>([]);
   const [, setUploadProgress] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
+
+  // Citizen Contact Details
+  const [contactName, setContactName] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      return u.full_name || "";
+    } catch { return ""; }
+  });
+  const [contactEmail, setContactEmail] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      return u.email || "";
+    } catch { return ""; }
+  });
+  const [contactPhone, setContactPhone] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      return u.phone || "";
+    } catch { return ""; }
+  });
+
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -58,6 +85,15 @@ export default function ReportFlow({ close, onSuccess }: { close: () => void; on
     categoryService.list().then(setCategories).catch(() => {});
   }, []);
 
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      evidenceItems.forEach(item => {
+        if (item.preview) URL.revokeObjectURL(item.preview);
+      });
+    };
+  }, [evidenceItems]);
+
   const next = () => (step < 5 ? setStep(step + 1) : handleSubmit());
 
   const handleSubmit = async () => {
@@ -84,15 +120,22 @@ export default function ReportFlow({ close, onSuccess }: { close: () => void; on
         location_lat: form.location_lat != null ? form.location_lat : undefined,
         location_lng: form.location_lng != null ? form.location_lng : undefined,
         priority: predictedPriority,
+        contact_name: contactName.trim() || undefined,
+        contact_email: contactEmail.trim() || undefined,
+        contact_phone: contactPhone.trim() || undefined,
       });
-      // Upload file if provided
-      if (uploadedFile) {
-        try {
-          await complaintService.uploadAttachment(complaint.id, uploadedFile, setUploadProgress);
-        } catch {
-          // Non-fatal — complaint is saved even if upload fails
+
+      // Upload all evidence attachments
+      if (evidenceItems.length > 0) {
+        for (const item of evidenceItems) {
+          try {
+            await complaintService.uploadAttachment(complaint.id, item.file, setUploadProgress);
+          } catch (uploadErr) {
+            console.error("Failed to upload evidence item:", uploadErr);
+          }
         }
       }
+
       setReferenceNumber(complaint.reference_number);
       setCreatedId(complaint.id);
       setSubmitted(true);
@@ -106,8 +149,28 @@ export default function ReportFlow({ close, onSuccess }: { close: () => void; on
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) setUploadedFile(f);
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const newItems: EvidenceItem[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const preview = URL.createObjectURL(file);
+      newItems.push({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        file,
+        preview,
+      });
+    }
+    setEvidenceItems(prev => [...prev, ...newItems]);
+    e.target.value = "";
+  };
+
+  const removeEvidence = (idToRemove: string) => {
+    setEvidenceItems(prev => {
+      const item = prev.find(x => x.id === idToRemove);
+      if (item?.preview) URL.revokeObjectURL(item.preview);
+      return prev.filter(x => x.id !== idToRemove);
+    });
   };
 
   const copyRef = () => navigator.clipboard.writeText(referenceNumber).catch(() => {});
@@ -203,15 +266,111 @@ export default function ReportFlow({ close, onSuccess }: { close: () => void; on
               {step === 2 && (
                 <div className="form-step">
                   <h3>{t("evidence_title", "Add a photo or video")}</h3>
-                  <p>{t("evidence_desc", "Clear evidence helps the civic team assess the issue faster.")}</p>
-                  <label className="upload-zone" htmlFor="file-upload">
-                    <span><Icon name="camera" size={30} /></span>
-                    <strong>{uploadedFile ? uploadedFile.name : t("upload_hint", "Take a photo or upload a file")}</strong>
-                    <small>{t("upload_subhint", "JPG, PNG or MP4 · Up to 20 MB")}</small>
-                    <input id="file-upload" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime" style={{ display: "none" }} onChange={handleFileChange} />
-                  </label>
-                  {uploadedFile && <p style={{ fontSize: 11, color: "var(--success)", marginTop: 8 }}>✓ {uploadedFile.name} ready to upload</p>}
-                  <button className="skip-link" onClick={next}>{t("skip_media", "Continue without media")}</button>
+                  <p>{t("evidence_desc", "Clear evidence helps the civic team assess the issue faster. Preview and remove photos anytime.")}</p>
+
+                  {/* Upload Dropzone */}
+                  {evidenceItems.length === 0 ? (
+                    <label className="upload-zone" htmlFor="file-upload" style={{ cursor: "pointer" }}>
+                      <span><Icon name="camera" size={30} /></span>
+                      <strong>{t("upload_hint", "Take a photo or upload files")}</strong>
+                      <small>{t("upload_subhint", "JPG, PNG or MP4 · Up to 20 MB each")}</small>
+                      <input
+                        id="file-upload"
+                        type="file"
+                        multiple
+                        accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
+                        style={{ display: "none" }}
+                        onChange={handleFileChange}
+                      />
+                    </label>
+                  ) : (
+                    <div className="evidence-preview-container">
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 12, marginBottom: 16 }}>
+                        {evidenceItems.map(item => (
+                          <div
+                            key={item.id}
+                            style={{
+                              position: "relative",
+                              borderRadius: 10,
+                              overflow: "hidden",
+                              border: "2px solid #a3d9cb",
+                              background: "#f0f7f4",
+                              boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                            }}
+                          >
+                            {item.file.type.startsWith("image/") ? (
+                              <img
+                                src={item.preview}
+                                alt={item.file.name}
+                                style={{ width: "100%", height: 110, objectFit: "cover", display: "block" }}
+                              />
+                            ) : (
+                              <div style={{ height: 110, display: "grid", placeItems: "center", background: "#e8f2ef", color: "var(--navy)" }}>
+                                <Icon name="camera" size={28} />
+                                <span style={{ fontSize: 9, fontWeight: 700 }}>Video file</span>
+                              </div>
+                            )}
+                            <div style={{ padding: "6px 8px", background: "white", borderTop: "1px solid var(--border)" }}>
+                              <p style={{ margin: 0, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "var(--navy)" }} title={item.file.name}>
+                                {item.file.name}
+                              </p>
+                              <small style={{ color: "var(--muted)", fontSize: 9 }}>
+                                {(item.file.size / 1024 / 1024).toFixed(1)} MB
+                              </small>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeEvidence(item.id)}
+                              aria-label="Remove uploaded image"
+                              title="Remove image"
+                              style={{
+                                position: "absolute",
+                                top: 5,
+                                right: 5,
+                                background: "#dc2626",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "50%",
+                                width: 24,
+                                height: 24,
+                                display: "grid",
+                                placeItems: "center",
+                                cursor: "pointer",
+                                boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                              }}
+                            >
+                              <Icon name="x" size={13} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                        <label
+                          htmlFor="file-upload-more"
+                          className="secondary-button"
+                          style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, padding: "7px 14px", height: "auto" }}
+                        >
+                          <Icon name="plus" size={13} /> Add more photos
+                          <input
+                            id="file-upload-more"
+                            type="file"
+                            multiple
+                            accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
+                            style={{ display: "none" }}
+                            onChange={handleFileChange}
+                          />
+                        </label>
+                        <span style={{ fontSize: 11, color: "var(--teal)", fontWeight: 700 }}>
+                          ✓ {evidenceItems.length} file{evidenceItems.length > 1 ? "s" : ""} attached
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  <button className="skip-link" onClick={next} style={{ marginTop: 16 }}>
+                    {evidenceItems.length > 0 ? "Continue with attached photos" : t("skip_media", "Continue without media")}
+                  </button>
                 </div>
               )}
               {step === 3 && (
@@ -262,6 +421,49 @@ export default function ReportFlow({ close, onSuccess }: { close: () => void; on
                     </>
                   )}
                   <label>{t("landmark_label", "Nearby landmark")}<input id="input-complaint-landmark" value={form.location_landmark} onChange={e => setForm(f => ({ ...f, location_landmark: e.target.value }))} placeholder={t("landmark_placeholder", "Optional")} /></label>
+
+                  {/* Citizen Contact Details Fields */}
+                  <div style={{ marginTop: 16, marginBottom: 16, padding: "14px 16px", background: "#f8fbfa", borderRadius: 10, border: "1px solid var(--border)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+                      <Icon name="shield" size={16} />
+                      <strong style={{ fontSize: 12, color: "var(--navy)" }}>Citizen Contact Details</strong>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      <label style={{ margin: 0 }}>
+                        Full Name *
+                        <input
+                          id="input-contact-name"
+                          type="text"
+                          required
+                          value={contactName}
+                          onChange={e => setContactName(e.target.value)}
+                          placeholder="e.g. Aditya Sharma"
+                        />
+                      </label>
+                      <label style={{ margin: 0 }}>
+                        Phone Number *
+                        <input
+                          id="input-contact-phone"
+                          type="tel"
+                          required
+                          value={contactPhone}
+                          onChange={e => setContactPhone(e.target.value)}
+                          placeholder="e.g. +91 98765 43210"
+                        />
+                      </label>
+                    </div>
+                    <label style={{ marginTop: 12, marginBottom: 0 }}>
+                      Email Address
+                      <input
+                        id="input-contact-email"
+                        type="email"
+                        value={contactEmail}
+                        onChange={e => setContactEmail(e.target.value)}
+                        placeholder="e.g. aditya@example.com"
+                      />
+                    </label>
+                  </div>
+
                   <div className="priority-predict-banner" data-priority={predictedPriority}>
                     <span className="priority-predict-label">{t("auto_priority", "Auto-detected priority")}</span>
                     <span className="priority-predict-badge">
@@ -292,6 +494,27 @@ export default function ReportFlow({ close, onSuccess }: { close: () => void; on
                     </div>
                     <div><span>{t("title_label", "Title")}</span><strong>{isOther ? (otherText.slice(0, 60) || "Other Civic Issue") : (form.title || "—")}</strong></div>
                     <div><span>{t("desc_label", "Description")}</span><strong>{isOther ? otherText : (form.description || "—")}</strong></div>
+                    <div>
+                      <span>Contact Info</span>
+                      <strong>
+                        {contactName || "—"} {contactPhone ? `· ${contactPhone}` : ""} {contactEmail ? `· ${contactEmail}` : ""}
+                      </strong>
+                    </div>
+                    {evidenceItems.length > 0 && (
+                      <div>
+                        <span>Evidence ({evidenceItems.length})</span>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                          {evidenceItems.map(item => (
+                            <img
+                              key={item.id}
+                              src={item.preview}
+                              alt={item.file.name}
+                              style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 6, border: "1px solid var(--border)" }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div>
                       <span>{t("review_priority", "Priority")}</span>
                       <strong style={{ display: "flex", alignItems: "center", gap: 6 }}>

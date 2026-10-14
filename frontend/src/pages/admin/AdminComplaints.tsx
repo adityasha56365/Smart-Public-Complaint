@@ -140,9 +140,19 @@ export default function AdminComplaints({ openComplaint }: { openComplaint: (id:
                   <td><input type="checkbox" aria-label={`Select ${c.reference_number}`} /></td>
                   <td>
                     <button className="table-title" onClick={() => openComplaint(c.id)}>
-                      <span>{c.reference_number}</span>
+                      <span>
+                        {c.reference_number}
+                        {c.attachments && c.attachments.length > 0 && (
+                          <span style={{ marginLeft: 6, color: "var(--teal)", fontWeight: 700, fontSize: 10, background: "#e8f4f0", padding: "1px 5px", borderRadius: 4 }}>
+                            📷 {c.attachments.length}
+                          </span>
+                        )}
+                      </span>
                       <strong>{c.title}</strong>
-                      <small>{c.category_name || "Uncategorized"}</small>
+                      <small>
+                        {c.category_name || "Uncategorized"}
+                        {c.contact_name ? ` · ${c.contact_name}` : ""}
+                      </small>
                     </button>
                   </td>
                   <td>

@@ -146,6 +146,9 @@ class ComplaintCreate(BaseModel):
     ward: Optional[str] = None
     zone: Optional[str] = None
     priority: Priority = Priority.medium
+    contact_name: Optional[str] = None
+    contact_email: Optional[EmailStr] = None
+    contact_phone: Optional[str] = None
 
 
 class ComplaintStatusUpdate(BaseModel):
@@ -158,6 +161,19 @@ class ComplaintAssignRequest(BaseModel):
     officer_id: Optional[int] = None
     department_id: Optional[int] = None
     notes: Optional[str] = None
+
+
+class AttachmentOut(BaseModel):
+    id: int
+    original_filename: str
+    mime_type: str
+    size_bytes: int
+    attachment_type: AttachmentType
+    created_at: datetime
+    url: Optional[str] = None
+    data_url: Optional[str] = None
+
+    model_config = {"from_attributes": True}
 
 
 class ComplaintOut(BaseModel):
@@ -178,6 +194,10 @@ class ComplaintOut(BaseModel):
     citizen_id: int
     category_id: Optional[int]
     category_name: Optional[str] = None
+    contact_name: Optional[str] = None
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    attachments: List[AttachmentOut] = []
     created_at: datetime
     updated_at: datetime
 
@@ -186,23 +206,10 @@ class ComplaintOut(BaseModel):
 
 class ComplaintDetail(ComplaintOut):
     citizen_name: Optional[str] = None
-    attachments: List["AttachmentOut"] = []
     status_history: List["StatusHistoryOut"] = []
     comments: List["CommentOut"] = []
     internal_notes: List["InternalNoteOut"] = []
     current_assignment: Optional["AssignmentOut"] = None
-
-
-class AttachmentOut(BaseModel):
-    id: int
-    original_filename: str
-    mime_type: str
-    size_bytes: int
-    attachment_type: AttachmentType
-    created_at: datetime
-    url: Optional[str] = None
-
-    model_config = {"from_attributes": True}
 
 
 class StatusHistoryOut(BaseModel):

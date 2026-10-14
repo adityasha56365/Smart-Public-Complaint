@@ -20,11 +20,28 @@ from app.core.config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Ensure database schema tables exist on startup."""
+    """Ensure database schema tables and columns exist on startup."""
     try:
         from app.db.session import Base, engine
         import app.models.models  # noqa: F401
+        import sqlalchemy as sa
         Base.metadata.create_all(bind=engine)
+        with engine.connect() as conn:
+            for col, col_type in [
+                ("contact_name", "VARCHAR(120)"),
+                ("contact_email", "VARCHAR(255)"),
+                ("contact_phone", "VARCHAR(20)"),
+            ]:
+                try:
+                    conn.execute(sa.text(f"ALTER TABLE complaints ADD COLUMN {col} {col_type};"))
+                    conn.commit()
+                except Exception:
+                    pass
+            try:
+                conn.execute(sa.text("ALTER TABLE complaint_attachments ADD COLUMN file_data TEXT;"))
+                conn.commit()
+            except Exception:
+                pass
     except Exception as exc:
         print(f"Warning: Database auto-table creation failed: {exc}")
     yield

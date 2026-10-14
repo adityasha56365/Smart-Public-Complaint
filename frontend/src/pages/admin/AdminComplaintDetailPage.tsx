@@ -121,7 +121,13 @@ export default function AdminComplaintDetailPage({ id, close }: { id: number; cl
             <p className="case-description">{complaint.description}</p>
             <div className="case-facts">
               <div><span>Category</span><strong>{complaint.category_name || "Uncategorized"}</strong></div>
-              <div><span>Citizen</span><strong>{complaint.citizen_name || `#${complaint.citizen_id}`}</strong></div>
+              <div><span>Citizen</span><strong>{complaint.contact_name || complaint.citizen_name || `#${complaint.citizen_id}`}</strong></div>
+              {complaint.contact_phone && (
+                <div><span>Phone</span><strong>{complaint.contact_phone}</strong></div>
+              )}
+              {complaint.contact_email && (
+                <div><span>Email</span><strong>{complaint.contact_email}</strong></div>
+              )}
               <div><span>Priority</span><strong style={{ textTransform: "capitalize" }}>{complaint.priority}</strong></div>
               <div><span>Submitted</span><strong>{new Date(complaint.created_at).toLocaleDateString("en-IN")}</strong></div>
               <div><span>Department</span><strong>{complaint.current_assignment?.department_name || "Unassigned"}</strong></div>

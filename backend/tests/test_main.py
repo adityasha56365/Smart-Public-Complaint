@@ -214,6 +214,50 @@ class TestComplaints:
         resp = client.get(f"/api/v1/complaints/{c_id}", headers={"Authorization": f"Bearer {token2}"})
         assert resp.status_code == 403
 
+    def test_create_complaint_with_contact_details(self, client, citizen_token):
+        resp = client.post("/api/v1/complaints", json={
+            "title": "Broken bench",
+            "description": "The public bench is broken into two pieces.",
+            "contact_name": "Ramesh Kumar",
+            "contact_email": "ramesh@example.com",
+            "contact_phone": "+919876543210",
+        }, headers={"Authorization": f"Bearer {citizen_token}"})
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["contact_name"] == "Ramesh Kumar"
+        assert data["contact_email"] == "ramesh@example.com"
+        assert data["contact_phone"] == "+919876543210"
+
+    def test_upload_and_download_attachment(self, client, citizen_token, db):
+        # 1. Create complaint
+        create_resp = client.post("/api/v1/complaints", json={
+            "title": "Pothole hazard", "description": "Dangerous pothole near the school."
+        }, headers={"Authorization": f"Bearer {citizen_token}"})
+        c_id = create_resp.json()["id"]
+
+        # 2. Upload dummy image
+        file_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDRdummytestimage"
+        upload_resp = client.post(
+            f"/api/v1/complaints/{c_id}/attachments",
+            files={"file": ("evidence.png", file_bytes, "image/png")},
+            headers={"Authorization": f"Bearer {citizen_token}"},
+        )
+        assert upload_resp.status_code == 201
+        att_id = upload_resp.json()["id"]
+
+        # 3. Check complaint detail has attachment with url and data_url
+        detail_resp = client.get(f"/api/v1/complaints/{c_id}", headers={"Authorization": f"Bearer {citizen_token}"})
+        assert detail_resp.status_code == 200
+        atts = detail_resp.json()["attachments"]
+        assert len(atts) == 1
+        assert atts[0]["id"] == att_id
+        assert atts[0]["data_url"] is not None
+
+        # 4. Download attachment
+        download_resp = client.get(f"/api/v1/complaints/{c_id}/attachments/{att_id}/file")
+        assert download_resp.status_code == 200
+        assert download_resp.content == file_bytes
+
 
 # ---------------------------------------------------------------------------
 # Status transition tests

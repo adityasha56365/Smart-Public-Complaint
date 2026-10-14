@@ -29,6 +29,9 @@ export interface CreateComplaintPayload {
   ward?: string;
   zone?: string;
   priority?: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
 }
 
 export interface ComplaintFilters {
@@ -83,25 +86,28 @@ export const complaintService = {
       reason,
       resolution_details: resolution,
     });
+    complaintsCache = {};
     return data;
   },
 
   async assign(id: number, payload: { officer_id?: number; department_id?: number; notes?: string }): Promise<Complaint> {
     const { data } = await api.post<Complaint>(`/complaints/${id}/assign`, payload);
+    complaintsCache = {};
     return data;
   },
 
-  async uploadAttachment(id: number, file: File, onProgress?: (pct: number) => void): Promise<{ id: number }> {
+  async uploadAttachment(id: number, file: File, onProgress?: (pct: number) => void): Promise<{ id: number; url?: string; data_url?: string }> {
     const form = new FormData();
     form.append("file", file);
     const { data } = await api.post(`/complaints/${id}/attachments`, form, {
-      headers: { "Content-Type": "multipart/form-data" },
+      headers: { "Content-Type": undefined },
       onUploadProgress: (e) => {
         if (onProgress && e.total) {
           onProgress(Math.round((e.loaded * 100) / e.total));
         }
       },
     });
+    complaintsCache = {};
     return data;
   },
 

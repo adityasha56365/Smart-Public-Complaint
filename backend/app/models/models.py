@@ -142,6 +142,9 @@ class Complaint(Base):
     resolution_details: Mapped[str | None] = mapped_column(Text, nullable=True)
     citizen_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     category_id: Mapped[int | None] = mapped_column(ForeignKey("complaint_categories.id"), nullable=True)
+    contact_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    contact_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
@@ -170,6 +173,7 @@ class ComplaintAttachment(Base):
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     attachment_type: Mapped[AttachmentType] = mapped_column(Enum(AttachmentType), nullable=False)
     uploaded_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    file_data: Mapped[str | None] = mapped_column(Text, nullable=True)  # Base64 encoded payload for serverless persistence
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     complaint: Mapped["Complaint"] = relationship("Complaint", back_populates="attachments")

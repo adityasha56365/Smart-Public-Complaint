@@ -51,6 +51,10 @@ export interface Complaint {
   citizen_id: number;
   category_id: number | null;
   category_name: string | null;
+  contact_name?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  attachments?: AttachmentOut[];
   created_at: string;
   updated_at: string;
 }
@@ -63,6 +67,7 @@ export interface AttachmentOut {
   attachment_type: "image" | "video";
   created_at: string;
   url: string | null;
+  data_url?: string | null;
 }
 
 export interface StatusHistoryItem {

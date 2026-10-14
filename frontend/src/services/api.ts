@@ -39,4 +39,25 @@ api.interceptors.response.use(
   },
 );
 
+export function getAttachmentUrl(url?: string | null): string {
+  if (!url) return "";
+  if (url.startsWith("data:") || url.startsWith("blob:")) return url;
+
+  const marker = "/api/v1/complaints/";
+  if (url.includes(marker)) {
+    const path = url.substring(url.indexOf(marker));
+    const raw = import.meta.env.VITE_API_BASE_URL;
+    const base = raw ? raw.replace(/\/+$/, "") : (import.meta.env.DEV ? "http://localhost:8000" : "");
+    return `${base}${path}`;
+  }
+
+  if (url.startsWith("/")) {
+    const raw = import.meta.env.VITE_API_BASE_URL;
+    const base = raw ? raw.replace(/\/+$/, "") : (import.meta.env.DEV ? "http://localhost:8000" : "");
+    return `${base}${url}`;
+  }
+
+  return url;
+}
+
 export default api;
