@@ -40,10 +40,30 @@ export default function AuthPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    const trimmedEmail = form.email.trim().toLowerCase();
+    const trimmedFullName = form.fullName.trim();
+    const password = form.password;
+
+    if (!trimmedEmail) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    if (mode === "register" && !trimmedFullName) {
+      setError("Please enter your full name.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long.");
+      return;
+    }
+
     setLoading(true);
     try {
       if (mode === "login") {
-        const authUser = await login(form.email, undefined, form.password);
+        const authUser = await login(trimmedEmail, undefined, password);
         if (
           authUser.role === "transport_admin" ||
           authUser.role === "transport_officer" ||
@@ -60,14 +80,34 @@ export default function AuthPage() {
           navigate("/");
         }
       } else {
-        await register(form.fullName, form.email, undefined, form.password);
+        await register(trimmedFullName, trimmedEmail, undefined, password);
         // Auto-login after register
-        await login(form.email, undefined, form.password);
-        navigate("/");
+        const authUser = await login(trimmedEmail, undefined, password);
+        if (
+          authUser.role === "transport_admin" ||
+          authUser.role === "transport_officer" ||
+          authUser.role === "transport_supervisor"
+        ) {
+          navigate("/transport-admin");
+        } else if (
+          authUser.role === "admin" ||
+          authUser.role === "supervisor" ||
+          authUser.role === "officer"
+        ) {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
       }
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setError(msg || "Something went wrong. Please try again.");
+      let msg = "";
+      const data = (err as { response?: { data?: { detail?: string | Array<{ msg: string }> } } })?.response?.data;
+      if (typeof data?.detail === "string") {
+        msg = data.detail;
+      } else if (Array.isArray(data?.detail) && data.detail.length > 0) {
+        msg = data.detail.map((d) => d.msg).join(", ");
+      }
+      setError(msg || "Unable to complete request. Please verify your details and try again.");
     } finally {
       setLoading(false);
     }

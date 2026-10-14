@@ -32,8 +32,9 @@ export default function ComplaintsPage({ openDetail, openReport }: { openDetail:
       }
       if (search) params.search = search;
       const res = await complaintService.list(params as Parameters<typeof complaintService.list>[0]);
-      setComplaints(res.items);
-      setTotal(res.total);
+      const items = Array.isArray(res?.items) ? res.items : [];
+      setComplaints(items);
+      setTotal(res?.total ?? items.length);
     } catch {
       setError("Failed to load complaints.");
     } finally {
@@ -53,8 +54,9 @@ export default function ComplaintsPage({ openDetail, openReport }: { openDetail:
     in_progress: "teal", assigned: "blue", resolved: "green", submitted: "amber", under_review: "amber",
   };
 
-  const activeCount = complaints.filter(c => !["resolved", "closed", "rejected"].includes(c.status)).length;
-  const resolvedCount = complaints.filter(c => ["resolved", "closed"].includes(c.status)).length;
+  const list = Array.isArray(complaints) ? complaints : [];
+  const activeCount = list.filter(c => c && !["resolved", "closed", "rejected"].includes(c.status)).length;
+  const resolvedCount = list.filter(c => c && ["resolved", "closed"].includes(c.status)).length;
 
   return (
     <div className="page">
@@ -91,7 +93,7 @@ export default function ComplaintsPage({ openDetail, openReport }: { openDetail:
       <section className="panel complaint-table">
         {loading && <div style={{ padding: 20 }}><Spinner /></div>}
         {error && <ErrorBanner message={error} onRetry={fetchComplaints} />}
-        {!loading && complaints.map(c => {
+        {!loading && list.map(c => {
           const icon = iconMap[c.category_name?.toLowerCase() || ""] || "building";
           const tone = toneMap[c.status] || "navy";
           const timeAgo = new Date(c.updated_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
@@ -123,7 +125,7 @@ export default function ComplaintsPage({ openDetail, openReport }: { openDetail:
             </button>
           );
         })}
-        {!loading && complaints.length === 0 && (
+        {!loading && list.length === 0 && (
           <div style={{ padding: "32px", textAlign: "center", color: "var(--muted)" }}>
             <Icon name="file" size={32} />
             <p style={{ marginTop: 12, fontSize: 13 }}>{t("no_complaints_found", "No complaints found.")}</p>

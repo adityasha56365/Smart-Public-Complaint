@@ -8,6 +8,7 @@ import AuthPage from "./pages/auth/AuthPage";
 import CitizenApp from "./pages/citizen/CitizenApp";
 import AdminApp from "./pages/admin/AdminApp";
 import TransportApp from "./pages/transport/TransportApp";
+import ErrorBoundary from "./components/common/ErrorBoundary";
 
 /**
  * Root Application Routing
@@ -84,12 +85,14 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <PreferencesProvider>
-          <AppRoutes />
-        </PreferencesProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <PreferencesProvider>
+            <AppRoutes />
+          </PreferencesProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }

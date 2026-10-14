@@ -10,6 +10,7 @@ export default function Topbar({
   onProfile,
   onMenu,
   langCode = "EN",
+  isHome = true,
 }: {
   title: string;
   onBell: () => void;
@@ -17,6 +18,7 @@ export default function Topbar({
   onProfile?: () => void;
   onMenu?: () => void;
   langCode?: string;
+  isHome?: boolean;
 }) {
   const { user } = useAuth();
   const { t } = usePreferences();
@@ -54,7 +56,7 @@ export default function Topbar({
         </div>
       </div>
       <div className="top-actions">
-        <InstallAppButton variant="topbar" />
+        <InstallAppButton variant="topbar" isHome={isHome} />
         <button className="language" type="button" onClick={onLanguage} title={t("change_lang", "Change language")}>
           <Icon name="globe" size={18} /> {langCode} <Icon name="chevron" size={14} />
         </button>

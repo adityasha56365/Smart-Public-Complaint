@@ -12,7 +12,7 @@ export default function NotificationsPage() {
   const fetch = useCallback(async () => {
     try {
       const data = await notificationService.list();
-      setNotifications(data);
+      setNotifications(Array.isArray(data) ? data : []);
     } catch {
       /**/
     } finally {
@@ -27,7 +27,7 @@ export default function NotificationsPage() {
   const markAllRead = async () => {
     try {
       await notificationService.markAllRead();
-      setNotifications(n => n.map(x => ({ ...x, is_read: true })));
+      setNotifications(n => (Array.isArray(n) ? n.map(x => ({ ...x, is_read: true })) : []));
     } catch {
       /**/
     }
@@ -37,6 +37,8 @@ export default function NotificationsPage() {
     submitted: "file", assigned: "building", in_progress: "clock",
     resolved: "check", awaiting_info: "bell",
   };
+
+  const list = Array.isArray(notifications) ? notifications : [];
 
   return (
     <div className="page">
@@ -52,7 +54,7 @@ export default function NotificationsPage() {
       </div>
       <section className="panel notifications">
         {loading && <div style={{ padding: 20 }}><Spinner /></div>}
-        {!loading && notifications.map((n) => {
+        {!loading && list.map((n) => {
           const icon = iconMap[n.title.toLowerCase().includes("assigned") ? "assigned" : "submitted"] || "bell";
           return (
             <div

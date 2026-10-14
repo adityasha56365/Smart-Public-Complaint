@@ -22,7 +22,7 @@ export default function Home({ openReport, openDetail }: { openReport: () => voi
   const fetchComplaints = useCallback(async () => {
     try {
       const res = await complaintService.list({ page_size: 50 });
-      setComplaints(res.items);
+      setComplaints(Array.isArray(res?.items) ? res.items : []);
     } catch {
       setError("Failed to load complaints.");
     } finally {
@@ -41,9 +41,10 @@ export default function Home({ openReport, openDetail }: { openReport: () => voi
   const firstName = user?.full_name?.split(" ")[0] || "there";
   const dateStr = now.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" });
 
-  const total = complaints.length;
-  const active = complaints.filter(c => !["resolved", "closed", "rejected"].includes(c.status)).length;
-  const resolved = complaints.filter(c => ["resolved", "closed"].includes(c.status)).length;
+  const list = Array.isArray(complaints) ? complaints : [];
+  const total = list.length;
+  const active = list.filter(c => c && !["resolved", "closed", "rejected"].includes(c.status)).length;
+  const resolved = list.filter(c => c && ["resolved", "closed"].includes(c.status)).length;
 
   const iconMap: Record<string, IconName> = {
     "roads & potholes": "road", "garbage & sanitation": "trash", "water supply": "water",
@@ -123,7 +124,7 @@ export default function Home({ openReport, openDetail }: { openReport: () => voi
           <div className="complaint-list">
             {loading && <div style={{ padding: 20 }}><Spinner /></div>}
             {error && <ErrorBanner message={error} onRetry={fetchComplaints} />}
-            {!loading && complaints.slice(0, 2).map(c => {
+            {!loading && list.slice(0, 2).map(c => {
               const icon = iconMap[c.category_name?.toLowerCase() || ""] || "building";
               const tone = toneMap[c.status] || "navy";
               const timeAgo = new Date(c.updated_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
@@ -140,7 +141,7 @@ export default function Home({ openReport, openDetail }: { openReport: () => voi
                 </button>
               );
             })}
-            {!loading && complaints.length === 0 && (
+            {!loading && list.length === 0 && (
               <div style={{ padding: "24px", textAlign: "center", color: "var(--muted)" }}>
                 <p style={{ fontSize: 13 }}>{t("no_complaints_yet", "No complaints yet. Report your first issue!")}</p>
                 <button className="primary-button" style={{ marginTop: 12 }} onClick={openReport}>

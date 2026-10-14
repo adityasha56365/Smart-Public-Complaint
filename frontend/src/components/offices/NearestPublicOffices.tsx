@@ -247,6 +247,9 @@ export default function NearestPublicOffices() {
     if (!mapContainerRef.current) return;
 
     if (!mapInstanceRef.current) {
+      if (mapContainerRef.current && (mapContainerRef.current as unknown as { _leaflet_id?: unknown })._leaflet_id) {
+        delete (mapContainerRef.current as unknown as { _leaflet_id?: unknown })._leaflet_id;
+      }
       const map = L.map(mapContainerRef.current, {
         center: [userLocation.lat, userLocation.lng],
         zoom: 13,
@@ -267,6 +270,9 @@ export default function NearestPublicOffices() {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
+      }
+      if (mapContainerRef.current && (mapContainerRef.current as unknown as { _leaflet_id?: unknown })._leaflet_id) {
+        delete (mapContainerRef.current as unknown as { _leaflet_id?: unknown })._leaflet_id;
       }
     };
   }, []);

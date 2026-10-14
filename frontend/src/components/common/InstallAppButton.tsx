@@ -147,34 +147,18 @@ export function InstallInstructionsModal({
 export default function InstallAppButton({
   variant = "hero",
   className = "",
+  isHome = true,
 }: {
   variant?: "hero" | "topbar" | "compact";
   className?: string;
+  isHome?: boolean;
 }) {
   const { isInstalled, isIos, showInstructions, setShowInstructions, promptInstall } =
     usePwaInstall();
 
+  // When installed on device, do NOT show any button or badge
   if (isInstalled) {
-    return (
-      <div
-        className={`pwa-installed-badge ${className}`}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          background: "#ecfdf5",
-          color: "#059669",
-          border: "1px solid #a7f3d0",
-          borderRadius: 8,
-          padding: "4px 10px",
-          fontSize: 11,
-          fontWeight: 700,
-        }}
-        title="Application is already installed on this device"
-      >
-        <Icon name="check" size={14} /> App Installed
-      </div>
-    );
+    return null;
   }
 
   if (variant === "topbar") {
@@ -183,23 +167,24 @@ export default function InstallAppButton({
         <button
           type="button"
           onClick={promptInstall}
-          className={`pwa-install-topbar-btn ${className}`}
+          className={`pwa-install-topbar-btn ${isHome ? "show-mobile-home" : "hide-mobile"} ${className}`}
           title="Install Smart Public Complaint application on your phone or desktop"
           style={{
-            height: 38,
+            height: 36,
             border: "1px solid var(--teal)",
             background: "#e8f6f5",
             color: "var(--teal)",
             borderRadius: 10,
-            padding: "0 12px",
+            padding: "0 10px",
             display: "inline-flex",
             alignItems: "center",
-            gap: 7,
+            gap: 6,
             fontSize: 12,
             fontWeight: 700,
             cursor: "pointer",
             transition: "all 0.15s ease",
             whiteSpace: "nowrap",
+            flexShrink: 0,
           }}
         >
           <Icon name="download" size={15} />

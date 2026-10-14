@@ -82,6 +82,7 @@ export default function CitizenApp() {
           onProfile={() => handleTabChange("profile")}
           onMenu={() => setSidebarOpen(true)}
           langCode={language.code}
+          isHome={active === "home" && detailId == null}
         />
         {detailId != null ? (
           <ComplaintDetailPage id={detailId} close={() => setDetailId(null)} />
@@ -90,27 +91,27 @@ export default function CitizenApp() {
             <div style={{ display: active === "home" ? "block" : "none" }}>
               <Home openReport={() => setReportOpen(true)} openDetail={setDetailId} />
             </div>
-            {visitedTabs.has("complaints") && (
+            {(visitedTabs.has("complaints") || active === "complaints") && (
               <div style={{ display: active === "complaints" ? "block" : "none" }}>
                 <ComplaintsPage openDetail={setDetailId} openReport={() => setReportOpen(true)} />
               </div>
             )}
-            {visitedTabs.has("challan") && (
+            {(visitedTabs.has("challan") || active === "challan") && (
               <div style={{ display: active === "challan" ? "block" : "none" }}>
                 <CitizenChallanPage />
               </div>
             )}
-            {visitedTabs.has("map") && (
+            {(visitedTabs.has("map") || active === "map") && (
               <div style={{ display: active === "map" ? "block" : "none" }}>
                 <MapPage openDetail={setDetailId} />
               </div>
             )}
-            {visitedTabs.has("notifications") && (
+            {(visitedTabs.has("notifications") || active === "notifications") && (
               <div style={{ display: active === "notifications" ? "block" : "none" }}>
                 <NotificationsPage />
               </div>
             )}
-            {visitedTabs.has("profile") && (
+            {(visitedTabs.has("profile") || active === "profile") && (
               <div style={{ display: active === "profile" ? "block" : "none" }}>
                 <ProfilePage onLogout={handleLogout} />
               </div>
@@ -123,10 +124,7 @@ export default function CitizenApp() {
           <button
             key={item.id}
             className={active === item.id ? "active" : ""}
-            onClick={() => {
-              setActive(item.id);
-              setDetailId(null);
-            }}
+            onClick={() => handleTabChange(item.id)}
           >
             <Icon name={item.icon} />
             <span>{t(item.labelKey, item.label).split(" ")[0]}</span>
