@@ -165,6 +165,7 @@ The database consists of 13 normalized relational tables:
 | Role | Email | Password | Access Portal |
 |---|---|---|---|
 | **Super Administrator** | `admin@civicly.app` | `AdminSecure2026!` | Admin Portal (`/admin`) |
+| **Transport Admin** | `transport.admin@civicly.app` | `Transport@123` | Transport Portal (`/transport-admin`) |
 | **Citizen** | Register via UI or use test account | Custom | Citizen Portal (`/`) |
 
 ---

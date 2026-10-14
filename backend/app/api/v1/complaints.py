@@ -91,7 +91,7 @@ def _attachment_to_out(att: ComplaintAttachment, complaint_id: int, request: Opt
     )
 
 
-def _complaint_to_out(c: Complaint, request: Optional[Request] = None, include_attachment_data: bool = False) -> ComplaintOut:
+def _complaint_to_out(c: Complaint, request: Optional[Request] = None, include_attachment_data: bool = True) -> ComplaintOut:
     atts = [_attachment_to_out(a, c.id, request, include_data=include_attachment_data) for a in (c.attachments or [])]
     return ComplaintOut(
         id=c.id,
@@ -242,7 +242,7 @@ def get_complaint(
             created_at=active_assign.created_at,
         )
 
-    attachments = [_attachment_to_out(a, complaint_id, request) for a in c.attachments]
+    attachments = [_attachment_to_out(a, complaint_id, request, include_data=True) for a in c.attachments]
 
     history = [
         StatusHistoryOut(
@@ -497,6 +497,7 @@ def download_attachment(
                 headers={
                     "Content-Disposition": f'inline; filename="{att.original_filename}"',
                     "Cache-Control": "public, max-age=86400",
+                    "Access-Control-Allow-Origin": "*",
                 },
             )
         except Exception:
