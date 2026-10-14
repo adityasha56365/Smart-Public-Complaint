@@ -59,19 +59,21 @@ export default function AdminComplaintDetailPage({ id, close }: { id: number; cl
     setSaving(true);
     setSaveMsg("");
     try {
-      let latestComplaint = complaint;
+      let latestStatus: string = complaint.status;
 
       // 1. Assign department/officer if selected
       if (selectedOfficer || selectedDept) {
-        latestComplaint = await complaintService.assign(id, {
+        const assigned = await complaintService.assign(id, {
           officer_id: selectedOfficer ? parseInt(selectedOfficer) : undefined,
           department_id: selectedDept ? parseInt(selectedDept) : undefined,
         });
+        latestStatus = assigned.status;
       }
 
       // 2. Update status ONLY if statusValue is different from the current/assigned status
-      if (statusValue && statusValue !== latestComplaint.status) {
-        latestComplaint = await complaintService.updateStatus(id, statusValue);
+      if (statusValue && statusValue !== latestStatus) {
+        const updated = await complaintService.updateStatus(id, statusValue);
+        latestStatus = updated.status;
       }
 
       // 3. Add internal note if provided
