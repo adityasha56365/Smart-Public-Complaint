@@ -113,4 +113,8 @@ export interface TransportDashboardSummary {
   cancellations_executed: number;
   upheld_count: number;
   rejected_count: number;
+  today_submitted?: number;
+  reason_breakdown?: Record<string, number>;
+  estimated_relief_amount?: number;
 }
+

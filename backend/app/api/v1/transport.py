@@ -125,6 +125,17 @@ def get_transport_dashboard_summary(
         ])
     ).scalar() or 0
 
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_count = db.query(func.count(ChallanComplaint.id)).filter(ChallanComplaint.created_at >= today_start).scalar() or 0
+
+    reasons_rows = db.query(ChallanComplaint.dispute_reason, func.count(ChallanComplaint.id)).group_by(ChallanComplaint.dispute_reason).all()
+    reason_map = {}
+    for r in reasons_rows:
+        key = r[0].value if hasattr(r[0], "value") else str(r[0])
+        reason_map[key] = r[1]
+
+    relief = (cancellations_app + cancellations_exec) * 1000
+
     return TransportDashboardSummary(
         total_disputes=total,
         newly_submitted=newly,
@@ -136,7 +147,11 @@ def get_transport_dashboard_summary(
         cancellations_executed=cancellations_exec,
         upheld_count=upheld,
         rejected_count=rejected,
+        today_submitted=today_count,
+        reason_breakdown=reason_map,
+        estimated_relief_amount=relief,
     )
+
 
 
 @router.get("/challan-complaints", response_model=PaginatedResponse)

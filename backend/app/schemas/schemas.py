@@ -495,3 +495,7 @@ class TransportDashboardSummary(BaseModel):
     cancellations_executed: int
     upheld_count: int
     rejected_count: int
+    today_submitted: int = 0
+    reason_breakdown: Optional[dict[str, int]] = None
+    estimated_relief_amount: int = 0
+

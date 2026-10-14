@@ -8,12 +8,20 @@ import TransportComplaints from "./TransportComplaints";
 export default function TransportApp({ onLogout }: { onLogout: () => void }) {
   const [active, setActive] = useState("overview");
   const [statusParam, setStatusParam] = useState<string | undefined>(undefined);
+  const [searchParam, setSearchParam] = useState<string | undefined>(undefined);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleNavigate = (id: string, filter?: string) => {
     setActive(id);
     setStatusParam(filter);
+    setSearchParam(undefined);
     setMenuOpen(false);
+  };
+
+  const handleSearch = (query: string) => {
+    setActive("complaints");
+    setStatusParam(undefined);
+    setSearchParam(query);
   };
 
   return (
@@ -28,25 +36,41 @@ export default function TransportApp({ onLogout }: { onLogout: () => void }) {
         <TransportTopbar
           active={active}
           onMenu={() => setMenuOpen(!menuOpen)}
+          onSearch={handleSearch}
         />
         <ErrorBoundary>
           {active === "overview" && (
             <TransportOverview onNavigate={handleNavigate} />
           )}
           {active === "complaints" && (
-            <TransportComplaints initialStatusFilter={statusParam} />
+            <TransportComplaints
+              initialStatusFilter={statusParam}
+              initialSearch={searchParam}
+            />
           )}
           {active === "pending" && (
-            <TransportComplaints initialStatusFilter="submitted" />
+            <TransportComplaints
+              initialStatusFilter="submitted"
+              initialSearch={searchParam}
+            />
           )}
           {active === "under_review" && (
-            <TransportComplaints initialStatusFilter="under_review" />
+            <TransportComplaints
+              initialStatusFilter="under_review"
+              initialSearch={searchParam}
+            />
           )}
           {active === "info_requested" && (
-            <TransportComplaints initialStatusFilter="awaiting_citizen_info" />
+            <TransportComplaints
+              initialStatusFilter="awaiting_citizen_info"
+              initialSearch={searchParam}
+            />
           )}
           {active === "decisions" && (
-            <TransportComplaints initialStatusFilter="cancellation_approved" />
+            <TransportComplaints
+              initialStatusFilter="cancellation_approved"
+              initialSearch={searchParam}
+            />
           )}
         </ErrorBoundary>
       </main>

@@ -11,8 +11,10 @@ import TransportDetailModal from "./TransportDetailModal";
 
 export default function TransportComplaints({
   initialStatusFilter,
+  initialSearch,
 }: {
   initialStatusFilter?: string;
+  initialSearch?: string;
 }) {
   const [complaints, setComplaints] = useState<ChallanComplaint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,10 +23,18 @@ export default function TransportComplaints({
   const [pageSize] = useState(12);
 
   // Filters
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch || "");
   const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter || "");
-  const [maskVehicles, setMaskVehicles] = useState(true);
+  const [maskVehicles, setMaskVehicles] = useState(false);
   const [selectedCase, setSelectedCase] = useState<ChallanComplaint | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    if (initialSearch !== undefined) {
+      setSearch(initialSearch);
+      setPage(1);
+    }
+  }, [initialSearch]);
 
   const fetchQueue = useCallback(async () => {
     setLoading(true);
@@ -44,6 +54,7 @@ export default function TransportComplaints({
     }
   }, [search, statusFilter, page, pageSize]);
 
+
   useEffect(() => {
     fetchQueue();
   }, [fetchQueue]);
@@ -54,6 +65,59 @@ export default function TransportComplaints({
     const start = v.slice(0, 4);
     const end = v.slice(-2);
     return `${start} •••• ${end}`;
+  };
+
+  const handleExportCSV = async () => {
+    setExporting(true);
+    try {
+      const res = await challanService.listTransportComplaints({ page: 1, page_size: 1000 });
+      const rows = [
+        [
+          "Reference ID",
+          "Challan Number",
+          "Vehicle Registration",
+          "Violation Date",
+          "Disputed Grounds",
+          "Adjudication Status",
+          "Citizen Name",
+          "Citizen Email",
+          "Citizen Phone",
+          "Assigned Officer",
+          "Decision Type",
+          "Date Filed",
+        ].join(","),
+        ...res.items.map((c) =>
+          [
+            `"${c.reference_id}"`,
+            `"${c.challan_number}"`,
+            `"${c.vehicle_number}"`,
+            `"${c.issue_date || ""}"`,
+            `"${CHALLAN_REASON_LABELS[c.dispute_reason] || c.dispute_reason}"`,
+            `"${CHALLAN_STATUS_LABELS[c.status]?.label || c.status}"`,
+            `"${c.citizen_name || ""}"`,
+            `"${c.citizen_email || ""}"`,
+            `"${c.citizen_phone || ""}"`,
+            `"${c.assigned_officer_name || "Unassigned"}"`,
+            `"${c.decision_type || "Pending"}"`,
+            `"${new Date(c.created_at).toLocaleDateString("en-IN")}"`,
+          ].join(",")
+        ),
+      ].join("\n");
+
+      const blob = new Blob([rows], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Challan_Queue_Export_${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed", err);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const totalPages = Math.ceil(total / pageSize) || 1;
@@ -72,6 +136,16 @@ export default function TransportComplaints({
           <button
             type="button"
             className="secondary-button"
+            onClick={handleExportCSV}
+            disabled={exporting || total === 0}
+            style={{ fontSize: 11 }}
+          >
+            <Icon name="download" size={15} />
+            {exporting ? "Exporting..." : "Export CSV"}
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
             onClick={() => setMaskVehicles(!maskVehicles)}
             style={{ fontSize: 11 }}
           >
@@ -80,6 +154,7 @@ export default function TransportComplaints({
           </button>
         </div>
       </div>
+
 
       <section className="admin-panel">
         {/* Toolbar */}
@@ -198,9 +273,12 @@ export default function TransportComplaints({
                       </small>
                     </td>
                     <td>
-                      <span style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 12 }}>
-                        {formatVehicleNumber(c.vehicle_number)}
-                      </span>
+                      <div className="hsrp-badge">
+                        <span className="hsrp-flag">
+                          <span style={{ fontSize: 6 }}>IND</span>
+                        </span>
+                        <span className="hsrp-number">{formatVehicleNumber(c.vehicle_number)}</span>
+                      </div>
                     </td>
                     <td>
                       <span style={{ fontSize: 11, color: "#333" }}>
