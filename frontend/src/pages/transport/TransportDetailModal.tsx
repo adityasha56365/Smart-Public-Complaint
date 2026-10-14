@@ -23,7 +23,9 @@ export default function TransportDetailModal({
   const { user } = useAuth();
   const [data, setData] = useState<ChallanComplaint>(complaint);
   const [loadingAction, setLoadingAction] = useState(false);
-  const [activeAction, setActiveAction] = useState<"none" | "request_info" | "record_findings" | "decision">("none");
+  const [activeAction, setActiveAction] = useState<
+    "none" | "request_info" | "record_findings" | "approve" | "reject" | "decision"
+  >("none");
 
   // Form states for actions
   const [infoMessage, setInfoMessage] = useState("");
@@ -33,6 +35,20 @@ export default function TransportDetailModal({
   const [showConfirmDecision, setShowConfirmDecision] = useState(false);
   const [actionError, setActionError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
+
+  const APPROVE_PRESETS = [
+    "Vehicle make/model & plate mismatch verified from uploaded photos",
+    "Technical camera OCR read error confirmed at traffic junction",
+    "Valid emergency / statutory exemption verified",
+    "Duplicate challan issued for single recorded occurrence",
+  ];
+
+  const REJECT_PRESETS = [
+    "Photographic evidence and camera logs confirm legitimate violation",
+    "Submitted supporting documents are insufficient to refute the violation",
+    "Vehicle registration and offence details match statutory records",
+    "Dispute grounds do not meet cancellation criteria",
+  ];
 
   const isSupervisorOrAdmin =
     user?.role === "transport_admin" ||
@@ -326,51 +342,390 @@ export default function TransportDetailModal({
 
         {/* ACTION WORKSPACE CONTROLS */}
         <div style={{ borderTop: "2px solid var(--border)", paddingTop: 16, marginTop: 16 }}>
-          <h4 style={{ margin: "0 0 12px", fontSize: 14, color: "var(--navy)" }}>Officer Review Actions</h4>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h4 style={{ margin: 0, fontSize: 14, color: "var(--navy)" }}>Officer Review & Decision Actions</h4>
+            {["cancellation_approved", "cancellation_executed", "dispute_rejected", "upheld"].includes(data.status) && (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  padding: "3px 8px",
+                  borderRadius: 6,
+                  background:
+                    data.status === "cancellation_approved" || data.status === "cancellation_executed"
+                      ? "#f0fdf4"
+                      : "#fef2f2",
+                  color:
+                    data.status === "cancellation_approved" || data.status === "cancellation_executed"
+                      ? "#15803d"
+                      : "#b91c1c",
+                  border:
+                    data.status === "cancellation_approved" || data.status === "cancellation_executed"
+                      ? "1px solid #bbf7d0"
+                      : "1px solid #fecaca",
+                }}
+              >
+                Case Resolved: {data.status.replace(/_/g, " ").toUpperCase()}
+              </span>
+            )}
+          </div>
 
           {activeAction === "none" && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-              {data.status === "submitted" && (
+            <div>
+              {/* PRIMARY DECISION BUTTONS: APPROVE / REJECT */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12,
+                  marginBottom: 14,
+                }}
+              >
+                {/* APPROVE BUTTON */}
                 <button
                   type="button"
-                  className="primary-button"
-                  onClick={handleAccept}
+                  onClick={() => {
+                    setDecisionType("cancellation_approved");
+                    setDecisionReason("");
+                    setActiveAction("approve");
+                  }}
                   disabled={loadingAction}
-                  style={{ minHeight: 38, fontSize: 12 }}
+                  style={{
+                    minHeight: 46,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    background: "#16a34a",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "0 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    cursor: "pointer",
+                    boxShadow: "0 2px 8px rgba(22, 163, 74, 0.25)",
+                    transition: "transform 0.1s ease, background 0.15s ease",
+                  }}
                 >
-                  <Icon name="check" size={16} /> Accept for Review
+                  <Icon name="check" size={18} /> Approve Dispute (Cancel / Waive Challan)
                 </button>
-              )}
 
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setActiveAction("request_info")}
-                disabled={loadingAction}
-                style={{ minHeight: 38, fontSize: 12 }}
-              >
-                <Icon name="alert" size={16} /> Request Additional Info
-              </button>
+                {/* REJECT BUTTON */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDecisionType("dispute_rejected");
+                    setDecisionReason("");
+                    setActiveAction("reject");
+                  }}
+                  disabled={loadingAction}
+                  style={{
+                    minHeight: 46,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    background: "#dc2626",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "0 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    cursor: "pointer",
+                    boxShadow: "0 2px 8px rgba(220, 38, 38, 0.25)",
+                    transition: "transform 0.1s ease, background 0.15s ease",
+                  }}
+                >
+                  <Icon name="x" size={18} /> Reject Dispute (Uphold Challan)
+                </button>
+              </div>
 
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => setActiveAction("record_findings")}
-                disabled={loadingAction}
-                style={{ minHeight: 38, fontSize: 12 }}
-              >
-                <Icon name="file" size={16} /> Record Inspection Notes
-              </button>
+              {/* SECONDARY REVIEW ACTIONS */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {data.status === "submitted" && (
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={handleAccept}
+                    disabled={loadingAction}
+                    style={{ minHeight: 36, fontSize: 12 }}
+                  >
+                    <Icon name="check" size={14} /> Accept for Review
+                  </button>
+                )}
 
-              <button
-                type="button"
-                className="primary-button"
-                onClick={() => setActiveAction("decision")}
-                disabled={loadingAction}
-                style={{ minHeight: 38, fontSize: 12, background: "var(--navy)" }}
-              >
-                <Icon name="shield" size={16} /> Issue Statutory Decision
-              </button>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setActiveAction("request_info")}
+                  disabled={loadingAction}
+                  style={{ minHeight: 36, fontSize: 12 }}
+                >
+                  <Icon name="alert" size={14} /> Request Additional Info
+                </button>
+
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setActiveAction("record_findings")}
+                  disabled={loadingAction}
+                  style={{ minHeight: 36, fontSize: 12 }}
+                >
+                  <Icon name="file" size={14} /> Record Inspection Notes
+                </button>
+
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setActiveAction("decision")}
+                  disabled={loadingAction}
+                  style={{ minHeight: 36, fontSize: 12 }}
+                >
+                  <Icon name="shield" size={14} /> More Statutory Actions...
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Sub-form: APPROVE DISPUTE */}
+          {activeAction === "approve" && (
+            <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 10, padding: 18 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <span style={{ background: "#16a34a", color: "white", borderRadius: "50%", width: 24, height: 24, display: "grid", placeItems: "center" }}>
+                  <Icon name="check" size={15} />
+                </span>
+                <h5 style={{ margin: 0, fontSize: 15, color: "#166534", fontWeight: 700 }}>
+                  Approve Challan Dispute (Cancel Fine)
+                </h5>
+              </div>
+              <p style={{ margin: "0 0 14px", fontSize: 12, color: "#15803d" }}>
+                Confirm that the citizen's dispute grounds are valid. The fine will be waived and an official clearance decision dispatched to the citizen.
+              </p>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#166534", marginBottom: 4 }}>
+                    Disposal Type *
+                  </label>
+                  <select
+                    value={decisionType}
+                    onChange={(e) => setDecisionType(e.target.value)}
+                    style={{ width: "100%", height: 38, borderRadius: 6, border: "1px solid #86efac", fontSize: 12, background: "white" }}
+                  >
+                    <option value="cancellation_approved">Cancellation Approved (Standard)</option>
+                    <option value="cancellation_executed">Execute Immediate Cancellation & Waiver</option>
+                  </select>
+                </div>
+
+                <div>
+                  {!isSupervisorOrAdmin && (
+                    <div style={{ background: "#fff5f5", color: "var(--error)", padding: 8, borderRadius: 6, fontSize: 11 }}>
+                      ⚠️ Cancellation requires <strong>Transport Admin</strong> authorization.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick-fill presets */}
+              <div style={{ marginBottom: 10 }}>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#166534", marginBottom: 5 }}>
+                  Quick-Select Finding Reason:
+                </label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {APPROVE_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setDecisionReason(preset)}
+                      style={{
+                        background: decisionReason === preset ? "#16a34a" : "white",
+                        color: decisionReason === preset ? "white" : "#166534",
+                        border: "1px solid #86efac",
+                        padding: "4px 9px",
+                        borderRadius: 14,
+                        fontSize: 11,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#166534", marginBottom: 4 }}>
+                  Statutory Order & Findings Remarks *
+                </label>
+                <textarea
+                  value={decisionReason}
+                  onChange={(e) => setDecisionReason(e.target.value)}
+                  placeholder="Record formal reasons supporting this challan cancellation..."
+                  style={{
+                    width: "100%",
+                    minHeight: 76,
+                    padding: 10,
+                    borderRadius: 6,
+                    border: "1px solid #86efac",
+                    fontSize: 12,
+                    fontFamily: "inherit",
+                    marginBottom: 12,
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => {
+                    setActiveAction("none");
+                    setDecisionReason("");
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmDecision(true)}
+                  disabled={loadingAction || !decisionReason.trim()}
+                  style={{
+                    background: "#16a34a",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 6,
+                    padding: "0 18px",
+                    height: 38,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: !decisionReason.trim() ? "not-allowed" : "pointer",
+                    opacity: !decisionReason.trim() ? 0.6 : 1,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <Icon name="check" size={16} /> Confirm Approval & Cancel Challan
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Sub-form: REJECT DISPUTE */}
+          {activeAction === "reject" && (
+            <div style={{ background: "#fef2f2", border: "1.5px solid #fca5a5", borderRadius: 10, padding: 18 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <span style={{ background: "#dc2626", color: "white", borderRadius: "50%", width: 24, height: 24, display: "grid", placeItems: "center" }}>
+                  <Icon name="x" size={15} />
+                </span>
+                <h5 style={{ margin: 0, fontSize: 15, color: "#991b1b", fontWeight: 700 }}>
+                  Reject Challan Dispute (Uphold Challan)
+                </h5>
+              </div>
+              <p style={{ margin: "0 0 14px", fontSize: 12, color: "#b91c1c" }}>
+                Confirm that the traffic violation is valid or the submitted evidence is insufficient. The challan remains active and must be paid.
+              </p>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#991b1b", marginBottom: 4 }}>
+                    Rejection Outcome *
+                  </label>
+                  <select
+                    value={decisionType}
+                    onChange={(e) => setDecisionType(e.target.value)}
+                    style={{ width: "100%", height: 38, borderRadius: 6, border: "1px solid #fca5a5", fontSize: 12, background: "white" }}
+                  >
+                    <option value="dispute_rejected">Dispute Rejected (Insufficient Grounds / Evidence Mismatch)</option>
+                    <option value="upheld">Challan Upheld (Legitimate Violation Confirmed by Camera/Sensor)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Quick-fill presets */}
+              <div style={{ marginBottom: 10 }}>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#991b1b", marginBottom: 5 }}>
+                  Quick-Select Rejection Reason:
+                </label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {REJECT_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setDecisionReason(preset)}
+                      style={{
+                        background: decisionReason === preset ? "#dc2626" : "white",
+                        color: decisionReason === preset ? "white" : "#991b1b",
+                        border: "1px solid #fca5a5",
+                        padding: "4px 9px",
+                        borderRadius: 14,
+                        fontSize: 11,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#991b1b", marginBottom: 4 }}>
+                  Statutory Findings & Rejection Grounds *
+                </label>
+                <textarea
+                  value={decisionReason}
+                  onChange={(e) => setDecisionReason(e.target.value)}
+                  placeholder="Record formal reasons why this dispute is rejected..."
+                  style={{
+                    width: "100%",
+                    minHeight: 76,
+                    padding: 10,
+                    borderRadius: 6,
+                    border: "1px solid #fca5a5",
+                    fontSize: 12,
+                    fontFamily: "inherit",
+                    marginBottom: 12,
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => {
+                    setActiveAction("none");
+                    setDecisionReason("");
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmDecision(true)}
+                  disabled={loadingAction || !decisionReason.trim()}
+                  style={{
+                    background: "#dc2626",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 6,
+                    padding: "0 18px",
+                    height: 38,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: !decisionReason.trim() ? "not-allowed" : "pointer",
+                    opacity: !decisionReason.trim() ? 0.6 : 1,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <Icon name="x" size={16} /> Confirm Rejection & Uphold Challan
+                </button>
+              </div>
             </div>
           )}
 
@@ -448,11 +803,11 @@ export default function TransportDetailModal({
             </div>
           )}
 
-          {/* Sub-form: Issue Decision */}
+          {/* Sub-form: Custom Statutory Decision */}
           {activeAction === "decision" && (
             <div style={{ background: "#f7fafc", border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
               <h5 style={{ margin: "0 0 10px", fontSize: 14, color: "var(--navy)" }}>
-                Issue Official Disposal / Decision
+                Custom Statutory Order / Disposal
               </h5>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
@@ -465,12 +820,12 @@ export default function TransportDetailModal({
                     onChange={(e) => setDecisionType(e.target.value)}
                     style={{ width: "100%", height: 38, borderRadius: 6, border: "1px solid var(--border)", fontSize: 12, background: "white" }}
                   >
-                    <option value="upheld">Challan Upheld (Valid violation)</option>
-                    <option value="dispute_rejected">Dispute Rejected (Insufficient grounds)</option>
-                    <option value="correction_recommended">Correction Recommended</option>
-                    <option value="correction_approved">Correction Approved</option>
                     <option value="cancellation_approved">Cancellation Approved (Pending Execution)</option>
                     <option value="cancellation_executed">Cancellation Executed</option>
+                    <option value="dispute_rejected">Dispute Rejected (Insufficient grounds)</option>
+                    <option value="upheld">Challan Upheld (Valid violation)</option>
+                    <option value="correction_recommended">Correction Recommended</option>
+                    <option value="correction_approved">Correction Approved</option>
                   </select>
                 </div>
 
@@ -526,24 +881,88 @@ export default function TransportDetailModal({
         {showConfirmDecision && (
           <div className="modal-scrim" style={{ display: "grid", placeItems: "center", zIndex: 120 }}>
             <div style={{ background: "white", borderRadius: 12, padding: 22, maxWidth: 480, width: "90%", boxShadow: "0 20px 40px rgba(0,0,0,0.3)" }}>
-              <h4 style={{ margin: "0 0 8px", fontSize: 16, color: "var(--navy)" }}>
-                Confirm Official Decision
-              </h4>
-              <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 12px" }}>
-                You are about to issue the decision <strong>{decisionType.replace(/_/g, " ").toUpperCase()}</strong> on Challan #{data.challan_number}. This status will be permanently timestamped in the audit log and dispatched to the citizen.
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                <span
+                  style={{
+                    background:
+                      decisionType === "cancellation_approved" || decisionType === "cancellation_executed"
+                        ? "#16a34a"
+                        : decisionType === "dispute_rejected" || decisionType === "upheld"
+                        ? "#dc2626"
+                        : "var(--navy)",
+                    color: "white",
+                    borderRadius: "50%",
+                    width: 28,
+                    height: 28,
+                    display: "grid",
+                    placeItems: "center",
+                  }}
+                >
+                  <Icon
+                    name={
+                      decisionType === "cancellation_approved" || decisionType === "cancellation_executed"
+                        ? "check"
+                        : decisionType === "dispute_rejected" || decisionType === "upheld"
+                        ? "x"
+                        : "shield"
+                    }
+                    size={16}
+                  />
+                </span>
+                <h4 style={{ margin: 0, fontSize: 16, color: "var(--navy)" }}>
+                  {decisionType === "cancellation_approved" || decisionType === "cancellation_executed"
+                    ? "Confirm Challan Cancellation"
+                    : decisionType === "dispute_rejected" || decisionType === "upheld"
+                    ? "Confirm Dispute Rejection"
+                    : "Confirm Official Decision"}
+                </h4>
+              </div>
+
+              <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 12px", lineHeight: 1.5 }}>
+                {decisionType === "cancellation_approved" || decisionType === "cancellation_executed" ? (
+                  <>
+                    You are approving the dispute for Challan <strong>#{data.challan_number}</strong> (Vehicle <strong>{data.vehicle_number}</strong>). The challan fine will be cancelled/waived and an official clearance order will be dispatched.
+                  </>
+                ) : decisionType === "dispute_rejected" || decisionType === "upheld" ? (
+                  <>
+                    You are rejecting the dispute for Challan <strong>#{data.challan_number}</strong> (Vehicle <strong>{data.vehicle_number}</strong>). The challan will remain active and legally enforceable.
+                  </>
+                ) : (
+                  <>
+                    You are about to issue the decision <strong>{decisionType.replace(/_/g, " ").toUpperCase()}</strong> on Challan #{data.challan_number}.
+                  </>
+                )}
               </p>
+
+              <div style={{ background: "#f8fafc", padding: 10, borderRadius: 6, fontSize: 11, marginBottom: 16, border: "1px solid var(--border)" }}>
+                <strong>Recorded Reason:</strong> {decisionReason}
+              </div>
+
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
                 <button type="button" className="secondary-button" onClick={() => setShowConfirmDecision(false)} disabled={loadingAction}>
-                  Back
+                  Back / Edit
                 </button>
                 <button
                   type="button"
                   className="primary-button"
                   onClick={handleDecisionSubmit}
                   disabled={loadingAction}
-                  style={{ background: "var(--navy)" }}
+                  style={{
+                    background:
+                      decisionType === "cancellation_approved" || decisionType === "cancellation_executed"
+                        ? "#16a34a"
+                        : decisionType === "dispute_rejected" || decisionType === "upheld"
+                        ? "#dc2626"
+                        : "var(--navy)",
+                  }}
                 >
-                  {loadingAction ? "Processing..." : "Confirm & Issue"}
+                  {loadingAction
+                    ? "Processing..."
+                    : decisionType === "cancellation_approved" || decisionType === "cancellation_executed"
+                    ? "Confirm & Waive Challan"
+                    : decisionType === "dispute_rejected" || decisionType === "upheld"
+                    ? "Confirm & Reject Dispute"
+                    : "Confirm & Issue"}
                 </button>
               </div>
             </div>

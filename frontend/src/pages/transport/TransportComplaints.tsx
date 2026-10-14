@@ -315,16 +315,44 @@ export default function TransportComplaints({
                         onClick={() => setSelectedCase(c)}
                         style={{
                           border: "1px solid var(--border)",
-                          background: "white",
-                          color: "var(--navy)",
-                          padding: "5px 12px",
+                          background: [
+                            "cancellation_approved",
+                            "cancellation_executed",
+                            "dispute_rejected",
+                            "upheld",
+                          ].includes(c.status)
+                            ? "white"
+                            : "var(--teal)",
+                          color: [
+                            "cancellation_approved",
+                            "cancellation_executed",
+                            "dispute_rejected",
+                            "upheld",
+                          ].includes(c.status)
+                            ? "var(--navy)"
+                            : "white",
+                          padding: "6px 13px",
                           borderRadius: 6,
                           fontSize: 11,
                           fontWeight: 700,
                           cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
                         }}
                       >
-                        Review Case
+                        {[
+                          "cancellation_approved",
+                          "cancellation_executed",
+                          "dispute_rejected",
+                          "upheld",
+                        ].includes(c.status) ? (
+                          "View Case"
+                        ) : (
+                          <>
+                            <Icon name="check" size={13} /> Review & Decide
+                          </>
+                        )}
                       </button>
                     </td>
                   </tr>
