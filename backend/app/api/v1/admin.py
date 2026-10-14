@@ -28,6 +28,7 @@ from app.schemas.schemas import (
     CategoryOut,
     DashboardStats,
     DepartmentCreate,
+    DepartmentUpdate,
     DepartmentOut,
     DepartmentWithStats,
     NotificationOut,
@@ -41,14 +42,21 @@ dept_router = APIRouter(prefix="/departments", tags=["departments"])
 
 @dept_router.get("", response_model=List[DepartmentOut])
 def list_departments(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return db.query(Department).filter(Department.is_active == True).all()
+    return db.query(Department).filter(Department.is_active == True).order_by(Department.name.asc()).all()
 
 
 @dept_router.post("", response_model=DepartmentOut, status_code=201)
 def create_department(body: DepartmentCreate, db: Session = Depends(get_db), _: User = Depends(require_admin)):
-    if db.query(Department).filter(Department.name == body.name).first():
+    clean_name = body.name.strip()
+    if len(clean_name) < 2:
+        raise HTTPException(status_code=422, detail="Department name must be at least 2 characters.")
+    if db.query(Department).filter(func.lower(Department.name) == clean_name.lower()).first():
         raise HTTPException(status_code=409, detail="Department name already exists.")
-    d = Department(**body.model_dump())
+    d = Department(
+        name=clean_name,
+        description=body.description.strip() if body.description else None,
+        jurisdiction=body.jurisdiction.strip() if body.jurisdiction else None,
+    )
     db.add(d)
     db.commit()
     db.refresh(d)
@@ -56,23 +64,43 @@ def create_department(body: DepartmentCreate, db: Session = Depends(get_db), _: 
 
 
 @dept_router.put("/{dept_id}", response_model=DepartmentOut)
-def update_department(dept_id: int, body: DepartmentCreate, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def update_department(dept_id: int, body: DepartmentUpdate, db: Session = Depends(get_db), _: User = Depends(require_supervisor)):
     d = db.query(Department).filter(Department.id == dept_id).first()
     if not d:
         raise HTTPException(status_code=404, detail="Department not found")
-    d.name = body.name
+    if body.name is not None:
+        clean_name = body.name.strip()
+        if len(clean_name) < 2:
+            raise HTTPException(status_code=422, detail="Department name must be at least 2 characters.")
+        existing = db.query(Department).filter(func.lower(Department.name) == clean_name.lower(), Department.id != dept_id).first()
+        if existing:
+            raise HTTPException(status_code=409, detail="Department name already exists.")
+        d.name = clean_name
     if body.description is not None:
-        d.description = body.description
+        d.description = body.description.strip() or None
     if body.jurisdiction is not None:
-        d.jurisdiction = body.jurisdiction
+        d.jurisdiction = body.jurisdiction.strip() or None
+    if body.is_active is not None:
+        d.is_active = body.is_active
     db.commit()
     db.refresh(d)
     return d
 
 
+@dept_router.delete("/{dept_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_department(dept_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+    d = db.query(Department).filter(Department.id == dept_id).first()
+    if not d:
+        raise HTTPException(status_code=404, detail="Department not found")
+    # Soft delete
+    d.is_active = False
+    db.commit()
+    return None
+
+
 @dept_router.get("/with-stats", response_model=List[DepartmentWithStats])
 def departments_with_stats(db: Session = Depends(get_db), _: User = Depends(require_officer)):
-    depts = db.query(Department).filter(Department.is_active == True).all()
+    depts = db.query(Department).order_by(Department.is_active.desc(), Department.name.asc()).all()
     if not depts:
         return []
 

@@ -333,6 +333,29 @@ class TestAdmin:
                            headers={"Authorization": f"Bearer {citizen_token}"})
         assert resp.status_code == 403
 
+    def test_admin_can_update_department(self, client, admin_token):
+        # Create department
+        create_resp = client.post("/api/v1/departments", json={"name": "Update Dept", "jurisdiction": "South Zone"},
+                                  headers={"Authorization": f"Bearer {admin_token}"})
+        dept_id = create_resp.json()["id"]
+
+        # Update name and jurisdiction
+        update_resp = client.put(f"/api/v1/departments/{dept_id}",
+                                 json={"name": "Updated Dept Name", "jurisdiction": "North Zone"},
+                                 headers={"Authorization": f"Bearer {admin_token}"})
+        assert update_resp.status_code == 200
+        data = update_resp.json()
+        assert data["name"] == "Updated Dept Name"
+        assert data["jurisdiction"] == "North Zone"
+
+    def test_admin_can_delete_department(self, client, admin_token):
+        create_resp = client.post("/api/v1/departments", json={"name": "Delete Dept", "jurisdiction": "East Zone"},
+                                  headers={"Authorization": f"Bearer {admin_token}"})
+        dept_id = create_resp.json()["id"]
+
+        del_resp = client.delete(f"/api/v1/departments/{dept_id}", headers={"Authorization": f"Bearer {admin_token}"})
+        assert del_resp.status_code == 204
+
 
 # ---------------------------------------------------------------------------
 # Health check

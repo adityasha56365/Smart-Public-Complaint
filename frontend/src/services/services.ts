@@ -179,8 +179,8 @@ export const departmentService = {
     return null;
   },
 
-  async list(): Promise<Department[]> {
-    if (departmentsCache && Date.now() - departmentsCache.timestamp < 30000) {
+  async list(force = false): Promise<Department[]> {
+    if (!force && departmentsCache && Date.now() - departmentsCache.timestamp < 30000) {
       return departmentsCache.data;
     }
     const { data } = await api.get<Department[]>("/departments");
@@ -188,7 +188,10 @@ export const departmentService = {
     return data;
   },
 
-  async listWithStats(): Promise<DepartmentWithStats[]> {
+  async listWithStats(force = false): Promise<DepartmentWithStats[]> {
+    if (!force && deptStatsCache && Date.now() - deptStatsCache.timestamp < 30000) {
+      return deptStatsCache.data;
+    }
     const { data } = await api.get<DepartmentWithStats[]>("/departments/with-stats");
     deptStatsCache = { data, timestamp: Date.now() };
     return data;
@@ -201,11 +204,17 @@ export const departmentService = {
     return data;
   },
 
-  async update(id: number, payload: { name: string; description?: string; jurisdiction?: string }): Promise<Department> {
+  async update(id: number, payload: { name?: string; description?: string; jurisdiction?: string; is_active?: boolean }): Promise<Department> {
     const { data } = await api.put<Department>(`/departments/${id}`, payload);
     departmentsCache = null;
     deptStatsCache = null;
     return data;
+  },
+
+  async delete(id: number): Promise<void> {
+    await api.delete(`/departments/${id}`);
+    departmentsCache = null;
+    deptStatsCache = null;
   },
 };
 

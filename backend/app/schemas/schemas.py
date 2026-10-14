@@ -91,6 +91,13 @@ class DepartmentCreate(BaseModel):
     jurisdiction: Optional[str] = None
 
 
+class DepartmentUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=2, max_length=120)
+    description: Optional[str] = None
+    jurisdiction: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
 class DepartmentOut(BaseModel):
     id: int
     name: str
