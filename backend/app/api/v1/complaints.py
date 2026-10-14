@@ -49,15 +49,15 @@ router = APIRouter(prefix="/complaints", tags=["complaints"])
 
 # Valid status transitions (from_status -> allowed_to_statuses)
 VALID_TRANSITIONS = {
-    ComplaintStatus.submitted: {ComplaintStatus.under_review, ComplaintStatus.rejected},
-    ComplaintStatus.under_review: {ComplaintStatus.assigned, ComplaintStatus.awaiting_info, ComplaintStatus.rejected},
-    ComplaintStatus.assigned: {ComplaintStatus.in_progress, ComplaintStatus.under_review},
-    ComplaintStatus.in_progress: {ComplaintStatus.awaiting_info, ComplaintStatus.resolved, ComplaintStatus.under_review},
-    ComplaintStatus.awaiting_info: {ComplaintStatus.in_progress, ComplaintStatus.under_review, ComplaintStatus.closed},
+    ComplaintStatus.submitted: {ComplaintStatus.under_review, ComplaintStatus.assigned, ComplaintStatus.rejected},
+    ComplaintStatus.under_review: {ComplaintStatus.assigned, ComplaintStatus.in_progress, ComplaintStatus.awaiting_info, ComplaintStatus.rejected},
+    ComplaintStatus.assigned: {ComplaintStatus.in_progress, ComplaintStatus.under_review, ComplaintStatus.awaiting_info, ComplaintStatus.resolved},
+    ComplaintStatus.in_progress: {ComplaintStatus.awaiting_info, ComplaintStatus.resolved, ComplaintStatus.under_review, ComplaintStatus.assigned},
+    ComplaintStatus.awaiting_info: {ComplaintStatus.in_progress, ComplaintStatus.under_review, ComplaintStatus.assigned, ComplaintStatus.closed},
     ComplaintStatus.resolved: {ComplaintStatus.reopened, ComplaintStatus.closed},
-    ComplaintStatus.reopened: {ComplaintStatus.under_review, ComplaintStatus.assigned},
-    ComplaintStatus.rejected: {ComplaintStatus.under_review},
-    ComplaintStatus.closed: set(),
+    ComplaintStatus.reopened: {ComplaintStatus.under_review, ComplaintStatus.assigned, ComplaintStatus.in_progress},
+    ComplaintStatus.rejected: {ComplaintStatus.under_review, ComplaintStatus.assigned},
+    ComplaintStatus.closed: {ComplaintStatus.reopened},
 }
 
 ALLOWED_MIME_TYPES = {
@@ -323,12 +323,23 @@ def update_status(
     if not c:
         raise HTTPException(status_code=404, detail="Complaint not found")
 
-    allowed = VALID_TRANSITIONS.get(c.status, set())
-    if body.status not in allowed:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Cannot transition from '{c.status}' to '{body.status}'"
-        )
+    # If the status is already equal, return early (idempotent update)
+    if body.status == c.status:
+        if body.resolution_details:
+            c.resolution_details = body.resolution_details
+            db.commit()
+            db.refresh(c)
+        return _complaint_to_out(c, request, include_attachment_data=True)
+
+    # Admin and supervisors have executive override over status transitions
+    if current_user.role not in (UserRole.admin, UserRole.supervisor):
+        allowed = VALID_TRANSITIONS.get(c.status, set())
+        if body.status not in allowed:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Cannot transition from '{c.status}' to '{body.status}'"
+            )
+
     if body.status == ComplaintStatus.rejected and not body.reason:
         raise HTTPException(status_code=422, detail="A reason is required when rejecting a complaint.")
 
@@ -344,7 +355,7 @@ def update_status(
         previous_status=prev,
         new_status=body.status,
         changed_by_id=current_user.id,
-        reason=body.reason,
+        reason=body.reason or "Status updated",
     ))
     _notify(db, c.citizen_id, c.id, "Complaint status updated",
             f"Your complaint '{c.title}' is now '{body.status.replace('_', ' ')}'.")
@@ -385,17 +396,20 @@ def assign_complaint(
         is_active=True,
     )
     db.add(new_assign)
-    if c.status == ComplaintStatus.submitted:
-        c.status = ComplaintStatus.under_review
-    db.add(ComplaintStatusHistory(
-        complaint_id=c.id,
-        previous_status=c.status,
-        new_status=ComplaintStatus.assigned if body.officer_id else c.status,
-        changed_by_id=current_user.id,
-        reason="Officer assigned",
-    ))
+
+    prev_status = c.status
     if body.officer_id:
         c.status = ComplaintStatus.assigned
+    elif c.status == ComplaintStatus.submitted:
+        c.status = ComplaintStatus.under_review
+
+    db.add(ComplaintStatusHistory(
+        complaint_id=c.id,
+        previous_status=prev_status,
+        new_status=c.status,
+        changed_by_id=current_user.id,
+        reason="Officer assigned" if body.officer_id else "Department assigned",
+    ))
     _notify(db, c.citizen_id, c.id, "Complaint assigned", f"Your complaint '{c.title}' has been assigned.")
     db.commit()
     db.refresh(c)

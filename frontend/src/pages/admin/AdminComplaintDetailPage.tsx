@@ -25,6 +25,12 @@ export default function AdminComplaintDetailPage({ id, close }: { id: number; cl
     const updated = await complaintService.get(id);
     setComplaint(updated);
     setStatusValue(updated.status);
+    if (updated.current_assignment?.department_id) {
+      setSelectedDept(String(updated.current_assignment.department_id));
+    }
+    if (updated.current_assignment?.officer_id) {
+      setSelectedOfficer(String(updated.current_assignment.officer_id));
+    }
   }, [id]);
 
   useEffect(() => {
@@ -38,6 +44,12 @@ export default function AdminComplaintDetailPage({ id, close }: { id: number; cl
         setStatusValue(c.status);
         setOfficers(o);
         setDepartments(d);
+        if (c.current_assignment?.department_id) {
+          setSelectedDept(String(c.current_assignment.department_id));
+        }
+        if (c.current_assignment?.officer_id) {
+          setSelectedOfficer(String(c.current_assignment.officer_id));
+        }
       })
       .finally(() => setLoading(false));
   }, [id]);
@@ -47,23 +59,40 @@ export default function AdminComplaintDetailPage({ id, close }: { id: number; cl
     setSaving(true);
     setSaveMsg("");
     try {
+      let latestComplaint = complaint;
+
+      // 1. Assign department/officer if selected
       if (selectedOfficer || selectedDept) {
-        await complaintService.assign(id, {
+        latestComplaint = await complaintService.assign(id, {
           officer_id: selectedOfficer ? parseInt(selectedOfficer) : undefined,
           department_id: selectedDept ? parseInt(selectedDept) : undefined,
         });
       }
-      if (statusValue !== complaint.status) {
-        await complaintService.updateStatus(id, statusValue);
+
+      // 2. Update status ONLY if statusValue is different from the current/assigned status
+      if (statusValue && statusValue !== latestComplaint.status) {
+        latestComplaint = await complaintService.updateStatus(id, statusValue);
       }
+
+      // 3. Add internal note if provided
       if (noteContent.trim()) {
-        await complaintService.addInternalNote(id, noteContent);
+        await complaintService.addInternalNote(id, noteContent.trim());
         setNoteContent("");
       }
+
       await reload();
-      setSaveMsg("✓ Saved successfully.");
+      setSaveMsg("✓ Saved and assigned successfully.");
     } catch (err: unknown) {
-      setSaveMsg((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Save failed.");
+      const resData = (err as any)?.response?.data;
+      let errorDetail = "Save failed.";
+      if (typeof resData?.detail === "string") {
+        errorDetail = resData.detail;
+      } else if (Array.isArray(resData?.detail) && resData.detail.length > 0) {
+        errorDetail = resData.detail[0]?.msg || JSON.stringify(resData.detail[0]);
+      } else if (typeof resData?.message === "string") {
+        errorDetail = resData.message;
+      }
+      setSaveMsg(`✕ ${errorDetail}`);
     } finally {
       setSaving(false);
     }
