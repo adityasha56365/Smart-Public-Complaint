@@ -24,6 +24,7 @@ from app.models.models import (
     ComplaintInternalNote,
     ComplaintStatus,
     ComplaintStatusHistory,
+    Department,
     Notification,
     User,
     UserRole,
@@ -405,8 +406,8 @@ def assign_complaint(
 
     db.add(ComplaintStatusHistory(
         complaint_id=c.id,
-        previous_status=prev_status,
-        new_status=c.status,
+        previous_status=prev_status.value if hasattr(prev_status, "value") else str(prev_status) if prev_status else None,
+        new_status=c.status.value if hasattr(c.status, "value") else str(c.status),
         changed_by_id=current_user.id,
         reason="Officer assigned" if body.officer_id else "Department assigned",
     ))
