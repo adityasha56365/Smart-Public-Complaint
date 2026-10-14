@@ -216,7 +216,7 @@ export default function AdminDepartments() {
             color: "var(--error)",
           }}
         >
-          <Icon name="warning" />
+          <Icon name="alert" />
           <div style={{ flex: 1 }}>
             <strong style={{ color: "var(--error)", display: "block", fontSize: 12 }}>Error</strong>
             <p style={{ color: "#7a2a2a", margin: "2px 0 0", fontSize: 11 }}>{errorMsg}</p>

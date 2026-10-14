@@ -5,7 +5,7 @@ export type IconName =
   | "search" | "chevron" | "road" | "trash" | "water" | "light"
   | "park" | "camera" | "pin" | "check" | "clock" | "building"
   | "shield" | "globe" | "help" | "settings" | "chart" | "users"
-  | "filter" | "download" | "more" | "alert" | "logout" | "x" | "star" | "eye" | "eye-off"
+  | "filter" | "download" | "more" | "alert" | "warning" | "logout" | "x" | "star" | "eye" | "eye-off"
   | "phone" | "navigation" | "hospital" | "flame" | "external-link";
 
 const paths: Record<IconName, React.ReactNode> = {
@@ -38,6 +38,7 @@ const paths: Record<IconName, React.ReactNode> = {
   download: <><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></>,
   more: <><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></>,
   alert: <><path d="M12 3 2 21h20z"/><path d="M12 9v5M12 18h.01"/></>,
+  warning: <><path d="M12 3 2 21h20z"/><path d="M12 9v5M12 18h.01"/></>,
   logout: <><path d="M10 17l5-5-5-5M15 12H3M15 4h5v16h-5"/></>,
   x: <path d="m6 6 12 12M18 6 6 18"/>,
   star: <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/>,
