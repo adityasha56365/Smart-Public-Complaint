@@ -57,12 +57,16 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
 
 
 def require_transport_officer(user: User = Depends(get_current_user)) -> User:
-    if user.role not in (UserRole.transport_officer, UserRole.transport_supervisor, UserRole.admin):
+    if user.role not in (UserRole.transport_admin, UserRole.transport_officer, UserRole.transport_supervisor, UserRole.admin):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Transport Department personnel access only")
     return user
 
 
 def require_transport_supervisor(user: User = Depends(get_current_user)) -> User:
-    if user.role not in (UserRole.transport_supervisor, UserRole.admin):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Transport Department supervisor access required")
+    if user.role not in (UserRole.transport_admin, UserRole.transport_supervisor, UserRole.admin):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Transport Department admin access required")
     return user
+
+
+require_transport_admin = require_transport_officer
+

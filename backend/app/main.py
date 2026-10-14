@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
             import app.models.models  # noqa: F401
             import sqlalchemy as sa
             with engine.connect() as conn:
-                for val in ["transport_officer", "transport_supervisor"]:
+                for val in ["transport_admin", "transport_officer", "transport_supervisor"]:
                     try:
                         conn.execute(sa.text(f"ALTER TYPE userrole ADD VALUE IF NOT EXISTS '{val}';"))
                         conn.commit()

@@ -35,7 +35,7 @@ function AppRoutes() {
               to={
                 user.role === "citizen"
                   ? "/"
-                  : user.role === "transport_officer" || user.role === "transport_supervisor"
+                  : user.role === "transport_admin" || user.role === "transport_officer" || user.role === "transport_supervisor"
                   ? "/transport-dashboard"
                   : "/admin"
               }

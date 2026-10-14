@@ -120,6 +120,21 @@ def transport_supervisor_token(db, client):
 
 
 @pytest.fixture
+def transport_admin_token(db, client):
+    t_admin = User(
+        full_name="Transport Admin User",
+        email="transport_admin@test.com",
+        hashed_password=hash_password("transportadminpassword"),
+        role=UserRole.transport_admin,
+    )
+    db.add(t_admin)
+    db.commit()
+    resp = client.post("/api/v1/auth/login", json={"email": "transport_admin@test.com", "password": "transportadminpassword"})
+    return resp.json()["access_token"]
+
+
+
+@pytest.fixture
 def sample_category(db):
     cat = ComplaintCategory(name="Roads & Potholes", icon="road")
     db.add(cat)
@@ -556,3 +571,32 @@ class TestChallanComplaintModule:
         assert supervisor_resp.status_code == 200
         assert supervisor_resp.json()["status"] == "cancellation_approved"
         assert supervisor_resp.json()["decision_type"] == "cancellation_approved"
+
+    def test_transport_admin_workflow(self, client, citizen_token, transport_admin_token):
+        """Unified Transport Admin can view, review, and execute all decisions without restriction."""
+        # Citizen files dispute
+        create_resp = client.post(
+            "/api/v1/challan-complaints",
+            json=self.sample_challan_payload,
+            headers={"Authorization": f"Bearer {citizen_token}"},
+        )
+        assert create_resp.status_code == 201
+        dispute_id = create_resp.json()["id"]
+
+        # Transport Admin accesses dashboard summary
+        summary_resp = client.get(
+            "/api/v1/transport/dashboard/summary",
+            headers={"Authorization": f"Bearer {transport_admin_token}"},
+        )
+        assert summary_resp.status_code == 200
+        assert "total_disputes" in summary_resp.json()
+
+        # Transport Admin directly approves cancellation
+        decision_resp = client.post(
+            f"/api/v1/transport/challan-complaints/{dispute_id}/decision",
+            json={"decision_type": "cancellation_approved", "reason": "Full administrative cancellation by Transport Admin."},
+            headers={"Authorization": f"Bearer {transport_admin_token}"},
+        )
+        assert decision_resp.status_code == 200
+        assert decision_resp.json()["status"] == "cancellation_approved"
+

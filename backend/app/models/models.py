@@ -26,6 +26,7 @@ class UserRole(str, enum.Enum):
     officer = "officer"
     supervisor = "supervisor"
     admin = "admin"
+    transport_admin = "transport_admin"
     transport_officer = "transport_officer"
     transport_supervisor = "transport_supervisor"
 

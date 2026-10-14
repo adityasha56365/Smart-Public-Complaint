@@ -24,8 +24,8 @@ export default function TransportOverview({
     <div className="admin-page">
       <div className="admin-page-head">
         <div>
-          <span className="eyebrow">TRANSPORT DEPARTMENT</span>
-          <h1>Challan Dispute Operations</h1>
+          <span className="eyebrow">TRANSPORT ADMIN DASHBOARD</span>
+          <h1>Transport Admin Operations</h1>
           <p>
             Official workload review, active dispute verification, citizen response monitoring, and statutory orders.
           </p>
@@ -177,7 +177,7 @@ export default function TransportOverview({
                 <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
                   <Icon name="check" size={18} />
                   <span>
-                    <strong>Supervisory Approval:</strong> Final cancellation decisions must be approved by a Transport Supervisor or Admin before execution.
+                    <strong>Transport Admin Authority:</strong> Full authority to investigate, request citizen documentation, uphold, or cancel disputed challans.
                   </span>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>

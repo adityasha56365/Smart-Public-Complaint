@@ -87,14 +87,32 @@ def seed(email: str, password: str, full_name: str = "Super Administrator"):
             db.add(admin)
             print(f"Created admin user: {email}")
 
+        # Create default Transport Admin
+        transport_admin_email = "transport.admin@civicly.app"
+        t_admin = db.query(User).filter(User.email == transport_admin_email).first()
+        if not t_admin:
+            t_admin = User(
+                full_name="Transport Admin",
+                email=transport_admin_email,
+                hashed_password=hash_password("Transport@123"),
+                role=UserRole.transport_admin,
+                department_id=dept_map.get("Transport Department"),
+                is_active=True,
+            )
+            db.add(t_admin)
+            print(f"Created Transport Admin: {transport_admin_email}")
+        else:
+            t_admin.role = UserRole.transport_admin
+            t_admin.hashed_password = hash_password("Transport@123")
+
         # Create default Transport Officer
         transport_officer_email = "transport.officer@civicly.app"
         if not db.query(User).filter(User.email == transport_officer_email).first():
             t_officer = User(
                 full_name="Rajesh Verma (Transport Officer)",
                 email=transport_officer_email,
-                hashed_password=hash_password("TransportSecure2026!"),
-                role=UserRole.transport_officer,
+                hashed_password=hash_password("Transport@123"),
+                role=UserRole.transport_admin,
                 department_id=dept_map.get("Transport Department"),
                 is_active=True,
             )
@@ -107,8 +125,8 @@ def seed(email: str, password: str, full_name: str = "Super Administrator"):
             t_supervisor = User(
                 full_name="Meena Iyer (Transport Supervisor)",
                 email=transport_supervisor_email,
-                hashed_password=hash_password("TransportSecure2026!"),
-                role=UserRole.transport_supervisor,
+                hashed_password=hash_password("Transport@123"),
+                role=UserRole.transport_admin,
                 department_id=dept_map.get("Transport Department"),
                 is_active=True,
             )

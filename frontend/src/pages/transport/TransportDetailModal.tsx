@@ -33,7 +33,9 @@ export default function TransportDetailModal({
   const [actionSuccess, setActionSuccess] = useState("");
 
   const isSupervisorOrAdmin =
-    user?.role === "transport_supervisor" || user?.role === "admin";
+    user?.role === "transport_admin" ||
+    user?.role === "transport_supervisor" ||
+    user?.role === "admin";
 
   // Action: Accept for Review
   const handleAccept = async () => {
@@ -451,7 +453,7 @@ export default function TransportDetailModal({
                 <div>
                   {(decisionType === "cancellation_approved" || decisionType === "cancellation_executed") && !isSupervisorOrAdmin && (
                     <div style={{ background: "#fff5f5", color: "var(--error)", padding: 8, borderRadius: 6, fontSize: 11, marginTop: 18 }}>
-                      ⚠️ Cancellation requires <strong>Transport Supervisor</strong> or <strong>Admin</strong> authorization.
+                      ⚠️ Cancellation requires <strong>Transport Admin</strong> authorization.
                     </div>
                   )}
                 </div>

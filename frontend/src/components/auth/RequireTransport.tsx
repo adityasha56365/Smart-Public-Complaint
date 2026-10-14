@@ -26,6 +26,7 @@ export default function RequireTransport({ children }: { children: React.ReactNo
 
   // Only transport personnel or admin
   const isTransport =
+    user?.role === "transport_admin" ||
     user?.role === "transport_officer" ||
     user?.role === "transport_supervisor" ||
     user?.role === "admin";

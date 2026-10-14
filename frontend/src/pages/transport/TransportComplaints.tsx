@@ -62,7 +62,7 @@ export default function TransportComplaints({
     <div className="admin-page">
       <div className="admin-page-head">
         <div>
-          <span className="eyebrow">TRANSPORT DEPARTMENT</span>
+          <span className="eyebrow">TRANSPORT ADMIN PORTAL</span>
           <h1>Challan Dispute Queue</h1>
           <p>
             Official intake, examination, and statutory review queue for traffic enforcement disputes.

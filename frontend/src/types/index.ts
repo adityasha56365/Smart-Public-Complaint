@@ -1,6 +1,6 @@
 /** TypeScript type definitions mirroring the backend schemas. */
 
-export type UserRole = "citizen" | "officer" | "supervisor" | "admin";
+export type UserRole = "citizen" | "officer" | "supervisor" | "admin" | "transport_admin" | "transport_officer" | "transport_supervisor";
 export type ComplaintStatus =
   | "submitted"
   | "under_review"

@@ -393,10 +393,10 @@ def record_complaint_decision(
 
     # Authorization check for cancellation
     if target_decision in ("cancellation_approved", "cancellation_executed"):
-        if current_user.role not in (UserRole.transport_supervisor, UserRole.admin):
+        if current_user.role not in (UserRole.transport_admin, UserRole.transport_supervisor, UserRole.admin):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only a Transport Department Supervisor or Administrator can authorize or execute challan cancellation.",
+                detail="Only a Transport Admin, Supervisor, or Administrator can authorize or execute challan cancellation.",
             )
 
     new_status = valid_decisions[target_decision]
