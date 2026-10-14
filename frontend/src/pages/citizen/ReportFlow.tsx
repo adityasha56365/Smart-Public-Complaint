@@ -531,8 +531,19 @@ export default function ReportFlow({ close, onSuccess }: { close: () => void; on
             </div>
             <footer>
               <button id="btn-report-cancel" className="text-button" onClick={() => (step > 1 ? setStep(step - 1) : close())}>{step > 1 ? t("btn_back", "Back") : t("btn_cancel", "Cancel")}</button>
-              <button id="btn-report-next" className="primary-button" onClick={next} disabled={loading}>
-                {loading ? <Spinner /> : step === 5 ? t("submit_btn", "Submit complaint") : t("btn_continue", "Continue")}
+              <button
+                id="btn-report-next"
+                className="primary-button"
+                onClick={next}
+                disabled={loading}
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, minWidth: 160 }}
+              >
+                {loading && <span className="btn-spinner" />}
+                <span>
+                  {loading
+                    ? (step === 5 ? "Submitting complaint..." : "Please wait...")
+                    : (step === 5 ? t("submit_btn", "Submit complaint") : t("btn_continue", "Continue"))}
+                </span>
                 {!loading && <Icon name="arrow" />}
               </button>
             </footer>

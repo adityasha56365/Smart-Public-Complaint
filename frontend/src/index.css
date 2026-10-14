@@ -55,7 +55,12 @@ button { cursor: pointer; }
 .language { padding: 0 12px; gap: 7px; font-size: 12px; font-weight: 700; }
 .language .icon:last-child { transform: rotate(90deg); }
 .bell-button { width: 40px; position: relative; }.bell-button span { position: absolute; width: 7px; height: 7px; background: #ef6d64; border: 2px solid white; border-radius: 50%; right: 8px; top: 8px; }
-.avatar { width: 40px; height: 40px; border-radius: 12px; background: #dfece8; color: var(--teal); display: grid; place-items: center; font-weight: 800; font-size: 13px; }
+.avatar { width: 40px; height: 40px; border-radius: 12px; background: var(--teal); color: #ffffff !important; display: grid; place-items: center; font-weight: 800; font-size: 13px; line-height: 1; text-align: center; user-select: none; }
+.avatar.large { width: 64px; height: 64px; border-radius: 18px; font-size: 20px; color: #ffffff !important; }
+.btn-spinner { width: 16px; height: 16px; border: 2.5px solid rgba(255, 255, 255, 0.35); border-top-color: #ffffff; border-radius: 50%; animation: btn-spin 0.65s linear infinite; display: inline-block; vertical-align: middle; flex-shrink: 0; }
+.spinner { width: 24px; height: 24px; border: 3px solid rgba(8, 127, 140, 0.2); border-top-color: var(--teal); border-radius: 50%; animation: btn-spin 0.65s linear infinite; display: inline-block; margin: 0 auto; vertical-align: middle; }
+.primary-button .spinner, .auth-submit .spinner { border-color: rgba(255, 255, 255, 0.35); border-top-color: #ffffff; width: 18px; height: 18px; border-width: 2.5px; }
+@keyframes btn-spin { to { transform: rotate(360deg); } }
 .page { max-width: 1280px; margin: 0 auto; padding: 36px 42px 60px; }
 .welcome { display: flex; justify-content: space-between; align-items: end; margin-bottom: 25px; }
 .welcome h2, .page-intro h2, .detail-head h2 { font: 800 28px/1.2 "Manrope", sans-serif; letter-spacing: -.04em; margin: 7px 0 4px; color: var(--navy); }

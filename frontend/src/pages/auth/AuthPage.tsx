@@ -191,8 +191,19 @@ export default function AuthPage() {
               </label>
             )}
             {error && <ErrorBanner message={error} />}
-            <button id="btn-auth-submit" type="submit" className="primary-button auth-submit" disabled={loading || (mode === "register" && !accepted)}>
-              {loading ? <Spinner /> : mode === "login" ? "Sign in" : "Create account"}
+            <button
+              id="btn-auth-submit"
+              type="submit"
+              className="primary-button auth-submit"
+              disabled={loading || (mode === "register" && !accepted)}
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, minWidth: 150 }}
+            >
+              {loading && <span className="btn-spinner" />}
+              <span>
+                {loading
+                  ? (mode === "login" ? "Signing in..." : "Creating account...")
+                  : (mode === "login" ? "Sign in" : "Create account")}
+              </span>
               {!loading && <Icon name="arrow" />}
             </button>
           </form>

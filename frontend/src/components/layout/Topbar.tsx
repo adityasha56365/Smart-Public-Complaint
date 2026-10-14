@@ -17,8 +17,20 @@ export default function Topbar({
 }) {
   const { user } = useAuth();
   const { t } = usePreferences();
-  const initials = user?.full_name?.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) || "??";
-  const avatarBg = localStorage.getItem("civicly_avatar_bg") || "var(--teal)";
+  const initials = (() => {
+    const name = user?.full_name || (() => {
+      try {
+        const u = JSON.parse(localStorage.getItem("user") || "{}");
+        return u.full_name || "";
+      } catch { return ""; }
+    })() || "Aditya Sharma";
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return (parts[0]?.slice(0, 2) || "AS").toUpperCase();
+  })();
+  const avatarBg = localStorage.getItem("civicly_avatar_bg") || "#087f8c";
 
   return (
     <header className="topbar">
@@ -37,7 +49,12 @@ export default function Topbar({
         <div
           className="avatar"
           onClick={onProfile}
-          style={{ background: avatarBg, cursor: onProfile ? "pointer" : "default" }}
+          style={{
+            background: avatarBg,
+            color: "#ffffff",
+            fontWeight: 700,
+            cursor: onProfile ? "pointer" : "default",
+          }}
           title="Account profile"
         >
           {initials}

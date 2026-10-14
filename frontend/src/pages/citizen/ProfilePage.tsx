@@ -41,8 +41,20 @@ export default function ProfilePage({ onLogout }: { onLogout: () => void }) {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
-  const initials = user?.full_name?.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) || "??";
-  const avatarBg = localStorage.getItem("civicly_avatar_bg") || "var(--teal)";
+  const initials = (() => {
+    const name = user?.full_name || (() => {
+      try {
+        const u = JSON.parse(localStorage.getItem("user") || "{}");
+        return u.full_name || "";
+      } catch { return ""; }
+    })() || "Aditya Sharma";
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return (parts[0]?.slice(0, 2) || "AS").toUpperCase();
+  })();
+  const avatarBg = localStorage.getItem("civicly_avatar_bg") || "#087f8c";
 
   const accessibilitySubtitle = `${accessibility.fontSizePercent}% text • ${
     accessibility.reduceMotion ? "Reduced motion" : "Default motion"
@@ -106,7 +118,17 @@ export default function ProfilePage({ onLogout }: { onLogout: () => void }) {
         <div className="profile-identity">
           <div
             className="avatar large"
-            style={{ background: avatarBg, cursor: "pointer" }}
+            style={{
+              background: avatarBg,
+              color: "#ffffff",
+              cursor: "pointer",
+              display: "grid",
+              placeItems: "center",
+              fontWeight: 800,
+              fontSize: "22px",
+              boxShadow: "0 6px 16px rgba(0,0,0,0.12)",
+              border: "2px solid rgba(255,255,255,0.25)",
+            }}
             onClick={() => setActiveModal("edit-profile")}
             title="Click to edit profile"
           >
