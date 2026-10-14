@@ -129,8 +129,9 @@ export default function NearestPublicOffices() {
   const [locationName, setLocationName] = useState<string>("Detecting your location...");
 
   // Data & filters
-  const [offices, setOffices] = useState<PublicOffice[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const initialCached = officeService.getCachedOffices(userLocation.lat, userLocation.lng, "all");
+  const [offices, setOffices] = useState<PublicOffice[]>(() => initialCached || []);
+  const [loading, setLoading] = useState<boolean>(() => !initialCached);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedOffice, setSelectedOffice] = useState<PublicOffice | null>(null);
@@ -146,7 +147,7 @@ export default function NearestPublicOffices() {
     setGpsLoading(true);
     if (!navigator.geolocation) {
       setGpsLoading(false);
-      setLocationName("Bengaluru (Default)");
+      setLocationName("Bengaluru Metro Area");
       return;
     }
 
@@ -157,33 +158,40 @@ export default function NearestPublicOffices() {
         setGpsActive(true);
         setGpsLoading(false);
 
-        // Reverse geocoding for area name display
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=14`, {
-          headers: { "Accept-Language": "en" },
-        })
-          .then((r) => r.json())
-          .then((data) => {
-            const suburb =
-              data.address?.suburb ||
-              data.address?.neighbourhood ||
-              data.address?.city_district ||
-              data.address?.city ||
-              data.address?.town ||
-              "Your Location";
-            const state = data.address?.state || "";
-            setLocationName(state ? `${suburb}, ${state}` : suburb);
+        // Reverse geocoding with fast 2s timeout so slow nominatim network never delays UI
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 2000);
+          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=14`, {
+            headers: { "Accept-Language": "en" },
+            signal: controller.signal,
           })
-          .catch(() => {
-            setLocationName(`${latitude.toFixed(3)}°N, ${longitude.toFixed(3)}°E`);
-          });
+            .then((r) => r.json())
+            .then((data) => {
+              clearTimeout(timer);
+              const suburb =
+                data.address?.suburb ||
+                data.address?.neighbourhood ||
+                data.address?.city_district ||
+                data.address?.city ||
+                data.address?.town ||
+                "Your Area";
+              const state = data.address?.state || "";
+              setLocationName(state ? `${suburb}, ${state}` : suburb);
+            })
+            .catch(() => {
+              setLocationName(`${latitude.toFixed(2)}°N, ${longitude.toFixed(2)}°E`);
+            });
+        } catch {
+          setLocationName(`${latitude.toFixed(2)}°N, ${longitude.toFixed(2)}°E`);
+        }
       },
-      (err) => {
-        console.warn("Geolocation prompt error or denied:", err.message);
+      () => {
         setGpsLoading(false);
         setGpsActive(false);
         setLocationName("Bengaluru Metro Area");
       },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+      { enableHighAccuracy: false, timeout: 3500, maximumAge: 120000 }
     );
   };
 
@@ -194,7 +202,8 @@ export default function NearestPublicOffices() {
   // 2. Fetch nearest offices whenever location or category changes
   useEffect(() => {
     let isCancelled = false;
-    setLoading(true);
+    const hit = officeService.getCachedOffices(userLocation.lat, userLocation.lng, selectedCategory);
+    if (!hit && offices.length === 0) setLoading(true);
 
     officeService
       .getNearestOffices(userLocation.lat, userLocation.lng, selectedCategory, 40)

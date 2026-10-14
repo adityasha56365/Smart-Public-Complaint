@@ -5,17 +5,29 @@ import { adminService } from "../../services/services";
 import type { ReportSummary } from "../../types";
 
 export default function AdminReports() {
-  const [report, setReport] = useState<ReportSummary | null>(null);
-  const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(30);
+  const cached = adminService.getCachedReports(days);
+  const [report, setReport] = useState<ReportSummary | null>(cached);
+  const [loading, setLoading] = useState(() => !cached);
 
   useEffect(() => {
-    setLoading(true);
+    let isCancelled = false;
+    const hit = adminService.getCachedReports(days);
+    if (!hit) setLoading(true);
     adminService
       .reports(days)
-      .then(setReport)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .then(res => {
+        if (!isCancelled) {
+          setReport(res);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) setLoading(false);
+      });
+    return () => {
+      isCancelled = true;
+    };
   }, [days]);
 
   const handleExportCSV = () => {

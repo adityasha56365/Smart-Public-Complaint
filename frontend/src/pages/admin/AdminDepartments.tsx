@@ -5,15 +5,16 @@ import { departmentService } from "../../services/services";
 import type { DepartmentWithStats } from "../../types";
 
 export default function AdminDepartments() {
-  const [depts, setDepts] = useState<DepartmentWithStats[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = departmentService.getCachedWithStats();
+  const [depts, setDepts] = useState<DepartmentWithStats[]>(() => cached || []);
+  const [loading, setLoading] = useState(() => !cached);
   const [showForm, setShowForm] = useState(false);
   const [newDept, setNewDept] = useState({ name: "", jurisdiction: "", description: "" });
   const [saving, setSaving] = useState(false);
   const [editDept, setEditDept] = useState<DepartmentWithStats | null>(null);
 
-  const fetchDepts = useCallback(async () => {
-    setLoading(true);
+  const fetchDepts = useCallback(async (silent = false) => {
+    if (!silent && !depts.length) setLoading(true);
     try {
       setDepts(await departmentService.listWithStats());
     } catch {
@@ -21,10 +22,13 @@ export default function AdminDepartments() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [depts.length]);
 
   useEffect(() => {
     fetchDepts();
+    const onFocus = () => fetchDepts(true);
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [fetchDepts]);
 
   const handleCreate = async () => {

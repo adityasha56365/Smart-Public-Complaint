@@ -7,15 +7,23 @@ import { exportToCSV } from "../../utils/csvExport";
 import type { Complaint, PaginatedResponse } from "../../types";
 
 export default function AdminComplaints({ openComplaint }: { openComplaint: (id: number) => void }) {
-  const [data, setData] = useState<PaginatedResponse<Complaint> | null>(null);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
   const [page, setPage] = useState(1);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const cached = complaintService.getCached({
+    page,
+    page_size: 20,
+    search: search || undefined,
+    status: statusFilter || undefined,
+  });
+
+  const [data, setData] = useState<PaginatedResponse<Complaint> | null>(cached);
+  const [loading, setLoading] = useState(() => !cached);
+
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent && !data) setLoading(true);
     try {
       const res = await complaintService.list({
         page,
@@ -29,10 +37,17 @@ export default function AdminComplaints({ openComplaint }: { openComplaint: (id:
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, data]);
 
   useEffect(() => {
     fetchData();
+    const onFocus = () => fetchData(true);
+    window.addEventListener("focus", onFocus);
+    const interval = setInterval(() => fetchData(true), 40000);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      clearInterval(interval);
+    };
   }, [fetchData]);
 
   const tabs = [

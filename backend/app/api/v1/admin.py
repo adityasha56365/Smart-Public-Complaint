@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, require_admin, require_officer, require_supervisor
@@ -12,6 +12,7 @@ from app.db.session import get_db
 from app.models.models import (
     AuditLog,
     Complaint,
+    ComplaintAssignment,
     ComplaintCategory,
     ComplaintStatus,
     Department,
@@ -72,27 +73,57 @@ def update_department(dept_id: int, body: DepartmentCreate, db: Session = Depend
 @dept_router.get("/with-stats", response_model=List[DepartmentWithStats])
 def departments_with_stats(db: Session = Depends(get_db), _: User = Depends(require_officer)):
     depts = db.query(Department).filter(Department.is_active == True).all()
+    if not depts:
+        return []
+
+    # 1. Single query for active officers per department
+    officer_counts = dict(
+        db.query(User.department_id, func.count(User.id))
+        .filter(User.department_id.isnot(None), User.is_active == True)
+        .group_by(User.department_id)
+        .all()
+    )
+
+    # 2. Single query for complaint assignments with status
+    assign_rows = (
+        db.query(
+            ComplaintAssignment.department_id,
+            Complaint.status,
+            ComplaintAssignment.is_active,
+        )
+        .join(Complaint, Complaint.id == ComplaintAssignment.complaint_id)
+        .filter(ComplaintAssignment.department_id.isnot(None))
+        .all()
+    )
+
+    # Fast in-memory aggregation
+    dept_stats_map = {}
+    for d_id, status, is_active in assign_rows:
+        if d_id not in dept_stats_map:
+            dept_stats_map[d_id] = {"open": 0, "total": 0, "resolved": 0}
+        dept_stats_map[d_id]["total"] += 1
+        if status in (ComplaintStatus.resolved, ComplaintStatus.closed):
+            dept_stats_map[d_id]["resolved"] += 1
+        elif is_active and status not in (ComplaintStatus.rejected,):
+            dept_stats_map[d_id]["open"] += 1
+
     result = []
     for d in depts:
-        officer_count = db.query(User).filter(User.department_id == d.id, User.is_active == True).count()
-        open_count = db.query(Complaint).join(
-            Complaint.assignments
-        ).filter(
-            Complaint.assignments.any(department_id=d.id, is_active=True),
-            Complaint.status.notin_([ComplaintStatus.resolved, ComplaintStatus.closed, ComplaintStatus.rejected])
-        ).count()
-        total = db.query(Complaint).filter(
-            Complaint.assignments.any(department_id=d.id)
-        ).count()
-        resolved = db.query(Complaint).filter(
-            Complaint.assignments.any(department_id=d.id),
-            Complaint.status.in_([ComplaintStatus.resolved, ComplaintStatus.closed])
-        ).count()
+        st = dept_stats_map.get(d.id, {"open": 0, "total": 0, "resolved": 0})
+        total = st["total"]
+        resolved = st["resolved"]
         rate = round(resolved / total * 100, 1) if total > 0 else 0.0
         result.append(DepartmentWithStats(
-            id=d.id, name=d.name, description=d.description,
-            jurisdiction=d.jurisdiction, is_active=d.is_active, created_at=d.created_at,
-            officer_count=officer_count, open_count=open_count, overdue_count=0, resolution_rate=rate,
+            id=d.id,
+            name=d.name,
+            description=d.description,
+            jurisdiction=d.jurisdiction,
+            is_active=d.is_active,
+            created_at=d.created_at,
+            officer_count=officer_counts.get(d.id, 0),
+            open_count=st["open"],
+            overdue_count=0,
+            resolution_rate=rate,
         ))
     return result
 
@@ -222,11 +253,20 @@ admin_router = APIRouter(prefix="/admin", tags=["admin"])
 @admin_router.get("/stats", response_model=DashboardStats)
 def dashboard_stats(db: Session = Depends(get_db), _: User = Depends(require_officer)):
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    total = db.query(Complaint).count()
-    new_today = db.query(Complaint).filter(Complaint.created_at >= today_start).count()
-    pending = db.query(Complaint).filter(Complaint.status.in_([ComplaintStatus.submitted, ComplaintStatus.under_review])).count()
-    in_prog = db.query(Complaint).filter(Complaint.status == ComplaintStatus.in_progress).count()
-    resolved = db.query(Complaint).filter(Complaint.status.in_([ComplaintStatus.resolved, ComplaintStatus.closed])).count()
+    stats_row = db.query(
+        func.count(Complaint.id).label("total"),
+        func.count(case((Complaint.created_at >= today_start, Complaint.id))).label("new_today"),
+        func.count(case((Complaint.status.in_([ComplaintStatus.submitted, ComplaintStatus.under_review]), Complaint.id))).label("pending"),
+        func.count(case((Complaint.status == ComplaintStatus.in_progress, Complaint.id))).label("in_progress"),
+        func.count(case((Complaint.status.in_([ComplaintStatus.resolved, ComplaintStatus.closed]), Complaint.id))).label("resolved"),
+    ).first()
+
+    total = stats_row.total if stats_row else 0
+    new_today = stats_row.new_today if stats_row else 0
+    pending = stats_row.pending if stats_row else 0
+    in_prog = stats_row.in_progress if stats_row else 0
+    resolved = stats_row.resolved if stats_row else 0
+
     return DashboardStats(total=total, new_today=new_today, pending_review=pending, in_progress=in_prog, resolved=resolved, overdue=0)
 
 
@@ -237,15 +277,21 @@ def reports(
     _: User = Depends(require_officer),
 ):
     since = datetime.now(timezone.utc) - timedelta(days=days)
-    total_received = db.query(Complaint).filter(Complaint.created_at >= since).count()
-    total_resolved = db.query(Complaint).filter(
-        Complaint.status.in_([ComplaintStatus.resolved, ComplaintStatus.closed]),
-        Complaint.updated_at >= since
-    ).count()
-    reopened = db.query(Complaint).filter(Complaint.status == ComplaintStatus.reopened).count()
+    report_counts = db.query(
+        func.count(case((Complaint.created_at >= since, Complaint.id))).label("total_received"),
+        func.count(case((
+            (Complaint.status.in_([ComplaintStatus.resolved, ComplaintStatus.closed])) & (Complaint.updated_at >= since),
+            Complaint.id
+        ))).label("total_resolved"),
+        func.count(case((Complaint.status == ComplaintStatus.reopened, Complaint.id))).label("reopened"),
+    ).first()
+
+    total_received = report_counts.total_received if report_counts else 0
+    total_resolved = report_counts.total_resolved if report_counts else 0
+    reopened = report_counts.reopened if report_counts else 0
     reopened_rate = round(reopened / max(total_received, 1) * 100, 2)
 
-    # Category distribution
+    # Category distribution (single grouped query)
     cat_counts = db.query(
         ComplaintCategory.name, func.count(Complaint.id)
     ).outerjoin(Complaint, Complaint.category_id == ComplaintCategory.id).group_by(ComplaintCategory.name).all()
@@ -255,17 +301,28 @@ def reports(
         for name, cnt in sorted(cat_counts, key=lambda x: -x[1])
     ]
 
-    # Daily trend (last 14 days)
+    # Daily trend in 1 single query instead of 28 sequential queries
+    fourteen_days_ago = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=14)
+    recent_rows = db.query(
+        Complaint.created_at,
+        Complaint.updated_at,
+        Complaint.status,
+    ).filter(
+        (Complaint.created_at >= fourteen_days_ago) | (Complaint.updated_at >= fourteen_days_ago)
+    ).all()
+
     daily = []
+    now_utc = datetime.now(timezone.utc)
     for i in range(14):
-        day = datetime.now(timezone.utc) - timedelta(days=13 - i)
+        day = now_utc - timedelta(days=13 - i)
         day_start = day.replace(hour=0, minute=0, second=0, microsecond=0)
         day_end = day_start + timedelta(days=1)
-        recv = db.query(Complaint).filter(Complaint.created_at >= day_start, Complaint.created_at < day_end).count()
-        res = db.query(Complaint).filter(
-            Complaint.status.in_([ComplaintStatus.resolved, ComplaintStatus.closed]),
-            Complaint.updated_at >= day_start, Complaint.updated_at < day_end
-        ).count()
+        recv = sum(1 for r in recent_rows if r.created_at and day_start <= r.created_at < day_end)
+        res = sum(
+            1 for r in recent_rows
+            if r.status in (ComplaintStatus.resolved, ComplaintStatus.closed)
+            and r.updated_at and day_start <= r.updated_at < day_end
+        )
         daily.append({"date": day_start.strftime("%d %b"), "received": recv, "resolved": res})
 
     return ReportSummary(

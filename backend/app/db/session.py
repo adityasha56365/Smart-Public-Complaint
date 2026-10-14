@@ -16,10 +16,12 @@ if is_serverless:
     engine_kwargs["pool_size"] = 2
     engine_kwargs["max_overflow"] = 3
     engine_kwargs["pool_recycle"] = 300
+    engine_kwargs["pool_timeout"] = 10
 else:
     engine_kwargs["pool_size"] = 10
     engine_kwargs["max_overflow"] = 20
     engine_kwargs["pool_recycle"] = 1800
+    engine_kwargs["pool_timeout"] = 15
 
 engine = create_engine(
     settings.clean_database_url,

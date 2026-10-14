@@ -20,47 +20,20 @@ export default function AdminApp({ onLogout }: { onLogout: () => void }) {
   const [detailId, setDetailId] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(["overview"]));
+
   const handleNavigate = (id: string) => {
     setActive(id);
     setDetailId(null);
+    setVisitedTabs(prev => (prev.has(id) ? prev : new Set(prev).add(id)));
   };
-
-  const page =
-    detailId != null ? (
-      <AdminComplaintDetailPage id={detailId} close={() => setDetailId(null)} />
-    ) : active === "overview" ? (
-      <AdminOverview openComplaint={setDetailId} navigate={handleNavigate} />
-    ) : active === "admin-complaints" ? (
-      <AdminComplaints openComplaint={setDetailId} />
-    ) : active === "departments" ? (
-      <AdminDepartments />
-    ) : active === "reports" ? (
-      <AdminReports />
-    ) : active === "audit" ? (
-      <AdminAuditLogs />
-    ) : active === "staff" ? (
-      <AdminStaff />
-    ) : active === "citizens" ? (
-      <AdminCitizens />
-    ) : active === "escalations" ? (
-      <AdminEscalations openComplaint={id => setDetailId(id)} />
-    ) : active === "admin-map" ? (
-      <AdminLiveMap openComplaint={setDetailId} />
-    ) : active === "admin-settings" ? (
-      <AdminSettings />
-    ) : active === "admin-help" ? (
-      <AdminHelp />
-    ) : (
-      <AdminOverview openComplaint={setDetailId} navigate={handleNavigate} />
-    );
 
   return (
     <div className={`admin-shell ${menuOpen ? "menu-open" : ""}`}>
       <AdminSidebar
         active={active}
         onChange={id => {
-          setActive(id);
-          setDetailId(null);
+          handleNavigate(id);
           setMenuOpen(false);
         }}
         onLogout={onLogout}
@@ -72,7 +45,65 @@ export default function AdminApp({ onLogout }: { onLogout: () => void }) {
           onMenu={() => setMenuOpen(!menuOpen)}
         />
         <ErrorBoundary>
-          {page}
+          {detailId != null ? (
+            <AdminComplaintDetailPage id={detailId} close={() => setDetailId(null)} />
+          ) : (
+            <>
+              <div style={{ display: active === "overview" ? "block" : "none" }}>
+                <AdminOverview openComplaint={setDetailId} navigate={handleNavigate} />
+              </div>
+              {visitedTabs.has("admin-complaints") && (
+                <div style={{ display: active === "admin-complaints" ? "block" : "none" }}>
+                  <AdminComplaints openComplaint={setDetailId} />
+                </div>
+              )}
+              {visitedTabs.has("departments") && (
+                <div style={{ display: active === "departments" ? "block" : "none" }}>
+                  <AdminDepartments />
+                </div>
+              )}
+              {visitedTabs.has("reports") && (
+                <div style={{ display: active === "reports" ? "block" : "none" }}>
+                  <AdminReports />
+                </div>
+              )}
+              {visitedTabs.has("audit") && (
+                <div style={{ display: active === "audit" ? "block" : "none" }}>
+                  <AdminAuditLogs />
+                </div>
+              )}
+              {visitedTabs.has("staff") && (
+                <div style={{ display: active === "staff" ? "block" : "none" }}>
+                  <AdminStaff />
+                </div>
+              )}
+              {visitedTabs.has("citizens") && (
+                <div style={{ display: active === "citizens" ? "block" : "none" }}>
+                  <AdminCitizens />
+                </div>
+              )}
+              {visitedTabs.has("escalations") && (
+                <div style={{ display: active === "escalations" ? "block" : "none" }}>
+                  <AdminEscalations openComplaint={id => setDetailId(id)} />
+                </div>
+              )}
+              {visitedTabs.has("admin-map") && (
+                <div style={{ display: active === "admin-map" ? "block" : "none" }}>
+                  <AdminLiveMap openComplaint={setDetailId} />
+                </div>
+              )}
+              {visitedTabs.has("admin-settings") && (
+                <div style={{ display: active === "admin-settings" ? "block" : "none" }}>
+                  <AdminSettings />
+                </div>
+              )}
+              {visitedTabs.has("admin-help") && (
+                <div style={{ display: active === "admin-help" ? "block" : "none" }}>
+                  <AdminHelp />
+                </div>
+              )}
+            </>
+          )}
         </ErrorBoundary>
       </main>
     </div>

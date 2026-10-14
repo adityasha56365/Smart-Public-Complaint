@@ -47,44 +47,59 @@ export default function CitizenApp() {
     navigate("/login", { replace: true });
   };
 
-  const content =
-    detailId != null ? (
-      <ComplaintDetailPage id={detailId} close={() => setDetailId(null)} />
-    ) : active === "home" ? (
-      <Home openReport={() => setReportOpen(true)} openDetail={setDetailId} />
-    ) : active === "complaints" ? (
-      <ComplaintsPage openDetail={setDetailId} openReport={() => setReportOpen(true)} />
-    ) : active === "map" ? (
-      <MapPage openDetail={setDetailId} />
-    ) : active === "notifications" ? (
-      <NotificationsPage />
-    ) : (
-      <ProfilePage onLogout={handleLogout} />
-    );
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(["home"]));
+
+  const handleTabChange = (id: string) => {
+    setActive(id);
+    setDetailId(null);
+    setVisitedTabs((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  };
 
   return (
     <div className="app-shell">
       <Sidebar
         active={active}
-        onChange={(id) => {
-          setActive(id);
-          setDetailId(null);
-        }}
+        onChange={handleTabChange}
         unreadCount={unreadCount}
         onHelp={() => setHelpModalOpen(true)}
       />
       <main className="main">
         <Topbar
           title={pageTitle}
-          onBell={() => setActive("notifications")}
+          onBell={() => handleTabChange("notifications")}
           onLanguage={() => setLangModalOpen(true)}
-          onProfile={() => {
-            setActive("profile");
-            setDetailId(null);
-          }}
+          onProfile={() => handleTabChange("profile")}
           langCode={language.code}
         />
-        {content}
+        {detailId != null ? (
+          <ComplaintDetailPage id={detailId} close={() => setDetailId(null)} />
+        ) : (
+          <>
+            <div style={{ display: active === "home" ? "block" : "none" }}>
+              <Home openReport={() => setReportOpen(true)} openDetail={setDetailId} />
+            </div>
+            {visitedTabs.has("complaints") && (
+              <div style={{ display: active === "complaints" ? "block" : "none" }}>
+                <ComplaintsPage openDetail={setDetailId} openReport={() => setReportOpen(true)} />
+              </div>
+            )}
+            {visitedTabs.has("map") && (
+              <div style={{ display: active === "map" ? "block" : "none" }}>
+                <MapPage openDetail={setDetailId} />
+              </div>
+            )}
+            {visitedTabs.has("notifications") && (
+              <div style={{ display: active === "notifications" ? "block" : "none" }}>
+                <NotificationsPage />
+              </div>
+            )}
+            {visitedTabs.has("profile") && (
+              <div style={{ display: active === "profile" ? "block" : "none" }}>
+                <ProfilePage onLogout={handleLogout} />
+              </div>
+            )}
+          </>
+        )}
       </main>
       <nav className="mobile-nav">
         {navItems.slice(0, 5).map((item) => (

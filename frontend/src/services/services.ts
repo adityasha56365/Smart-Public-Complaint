@@ -131,14 +131,28 @@ export const complaintService = {
 // Categories
 // ---------------------------------------------------------------------------
 
+let categoriesCache: { data: Category[]; timestamp: number } | null = null;
+
 export const categoryService = {
+  getCached(): Category[] | null {
+    if (categoriesCache && Date.now() - categoriesCache.timestamp < 120000) {
+      return categoriesCache.data;
+    }
+    return null;
+  },
+
   async list(): Promise<Category[]> {
+    if (categoriesCache && Date.now() - categoriesCache.timestamp < 60000) {
+      return categoriesCache.data;
+    }
     const { data } = await api.get<Category[]>("/categories");
+    categoriesCache = { data, timestamp: Date.now() };
     return data;
   },
 
   async create(payload: { name: string; description?: string; icon?: string; department_id?: number }): Promise<Category> {
     const { data } = await api.post<Category>("/categories", payload);
+    categoriesCache = null;
     return data;
   },
 };
@@ -147,24 +161,50 @@ export const categoryService = {
 // Departments
 // ---------------------------------------------------------------------------
 
+let departmentsCache: { data: Department[]; timestamp: number } | null = null;
+let deptStatsCache: { data: DepartmentWithStats[]; timestamp: number } | null = null;
+
 export const departmentService = {
+  getCached(): Department[] | null {
+    if (departmentsCache && Date.now() - departmentsCache.timestamp < 120000) {
+      return departmentsCache.data;
+    }
+    return null;
+  },
+
+  getCachedWithStats(): DepartmentWithStats[] | null {
+    if (deptStatsCache && Date.now() - deptStatsCache.timestamp < 60000) {
+      return deptStatsCache.data;
+    }
+    return null;
+  },
+
   async list(): Promise<Department[]> {
+    if (departmentsCache && Date.now() - departmentsCache.timestamp < 30000) {
+      return departmentsCache.data;
+    }
     const { data } = await api.get<Department[]>("/departments");
+    departmentsCache = { data, timestamp: Date.now() };
     return data;
   },
 
   async listWithStats(): Promise<DepartmentWithStats[]> {
     const { data } = await api.get<DepartmentWithStats[]>("/departments/with-stats");
+    deptStatsCache = { data, timestamp: Date.now() };
     return data;
   },
 
   async create(payload: { name: string; description?: string; jurisdiction?: string }): Promise<Department> {
     const { data } = await api.post<Department>("/departments", payload);
+    departmentsCache = null;
+    deptStatsCache = null;
     return data;
   },
 
   async update(id: number, payload: { name: string; description?: string; jurisdiction?: string }): Promise<Department> {
     const { data } = await api.put<Department>(`/departments/${id}`, payload);
+    departmentsCache = null;
+    deptStatsCache = null;
     return data;
   },
 };
@@ -173,14 +213,27 @@ export const departmentService = {
 // Users / Officers
 // ---------------------------------------------------------------------------
 
+let officersCache: { data: User[]; timestamp: number } | null = null;
+
 export const userService = {
+  getCachedOfficers(): User[] | null {
+    if (officersCache && Date.now() - officersCache.timestamp < 60000) {
+      return officersCache.data;
+    }
+    return null;
+  },
+
   async list(params?: { page?: number; page_size?: number; role?: string; search?: string }): Promise<PaginatedResponse<User>> {
     const { data } = await api.get<PaginatedResponse<User>>("/users", { params });
     return data;
   },
 
   async listOfficers(): Promise<User[]> {
+    if (officersCache && Date.now() - officersCache.timestamp < 30000) {
+      return officersCache.data;
+    }
     const { data } = await api.get<User[]>("/users/officers");
+    officersCache = { data, timestamp: Date.now() };
     return data;
   },
 
@@ -193,11 +246,13 @@ export const userService = {
     department_id?: number;
   }): Promise<User> {
     const { data } = await api.post<User>("/users", payload);
+    officersCache = null;
     return data;
   },
 
   async update(id: number, payload: { full_name?: string; role?: string; is_active?: boolean; department_id?: number }): Promise<User> {
     const { data } = await api.patch<User>(`/users/${id}`, payload);
+    officersCache = null;
     return data;
   },
 };
@@ -232,7 +287,7 @@ export const notificationService = {
   async markRead(id: number): Promise<void> {
     await api.patch(`/notifications/${id}/read`);
     if (notifCache) {
-      notifCache.data = notifCache.data.map(n => n.id === id ? ({ ...n, is_read: true }) : n);
+      notifCache.data = notifCache.data.map(n => (n.id === id ? { ...n, is_read: true } : n));
     }
   },
 };
@@ -241,14 +296,34 @@ export const notificationService = {
 // Admin / Reports
 // ---------------------------------------------------------------------------
 
+let statsCache: { data: DashboardStats; timestamp: number } | null = null;
+let reportsCache: Record<number, { data: ReportSummary; timestamp: number }> = {};
+
 export const adminService = {
+  getCachedStats(): DashboardStats | null {
+    if (statsCache && Date.now() - statsCache.timestamp < 60000) {
+      return statsCache.data;
+    }
+    return null;
+  },
+
   async stats(): Promise<DashboardStats> {
     const { data } = await api.get<DashboardStats>("/admin/stats");
+    statsCache = { data, timestamp: Date.now() };
     return data;
+  },
+
+  getCachedReports(days: number = 30): ReportSummary | null {
+    const hit = reportsCache[days];
+    if (hit && Date.now() - hit.timestamp < 60000) {
+      return hit.data;
+    }
+    return null;
   },
 
   async reports(days = 30): Promise<ReportSummary> {
     const { data } = await api.get<ReportSummary>("/admin/reports", { params: { days } });
+    reportsCache[days] = { data, timestamp: Date.now() };
     return data;
   },
 };

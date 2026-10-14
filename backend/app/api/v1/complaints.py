@@ -8,7 +8,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy import func
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy.orm import Session, defer, joinedload, selectinload
 
 from app.core.deps import get_current_user, require_officer
 from app.core.utils import generate_reference_number
@@ -66,9 +66,9 @@ ALLOWED_MIME_TYPES = {
 }
 
 
-def _attachment_to_out(att: ComplaintAttachment, complaint_id: int, request: Optional[Request] = None) -> AttachmentOut:
+def _attachment_to_out(att: ComplaintAttachment, complaint_id: int, request: Optional[Request] = None, include_data: bool = True) -> AttachmentOut:
     data_url = None
-    if att.file_data and att.attachment_type == AttachmentType.image and len(att.file_data) < 3_000_000:
+    if include_data and att.file_data and att.attachment_type == AttachmentType.image and len(att.file_data) < 4_000_000:
         data_url = f"data:{att.mime_type};base64,{att.file_data}"
 
     if request:
@@ -91,8 +91,8 @@ def _attachment_to_out(att: ComplaintAttachment, complaint_id: int, request: Opt
     )
 
 
-def _complaint_to_out(c: Complaint, request: Optional[Request] = None) -> ComplaintOut:
-    atts = [_attachment_to_out(a, c.id, request) for a in (c.attachments or [])]
+def _complaint_to_out(c: Complaint, request: Optional[Request] = None, include_attachment_data: bool = False) -> ComplaintOut:
+    atts = [_attachment_to_out(a, c.id, request, include_data=include_attachment_data) for a in (c.attachments or [])]
     return ComplaintOut(
         id=c.id,
         reference_number=c.reference_number,
@@ -171,7 +171,7 @@ def create_complaint(
             f"Your complaint '{complaint.title}' has been submitted. Reference: {ref}")
     db.commit()
     db.refresh(complaint)
-    return _complaint_to_out(complaint, request)
+    return _complaint_to_out(complaint, request, include_attachment_data=True)
 
 
 @router.get("", response_model=dict)
@@ -187,7 +187,7 @@ def list_complaints(
 ):
     q = db.query(Complaint).options(
         joinedload(Complaint.category),
-        selectinload(Complaint.attachments),
+        selectinload(Complaint.attachments).defer(ComplaintAttachment.file_data),
     )
     # Citizens only see their own complaints
     if current_user.role == UserRole.citizen:
@@ -202,7 +202,7 @@ def list_complaints(
         )
     total = q.count()
     items = q.order_by(Complaint.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
-    return {"total": total, "page": page, "page_size": page_size, "items": [_complaint_to_out(c, request) for c in items]}
+    return {"total": total, "page": page, "page_size": page_size, "items": [_complaint_to_out(c, request, include_attachment_data=False) for c in items]}
 
 
 @router.get("/{complaint_id}", response_model=ComplaintDetail)
@@ -350,7 +350,7 @@ def update_status(
             f"Your complaint '{c.title}' is now '{body.status.replace('_', ' ')}'.")
     db.commit()
     db.refresh(c)
-    return _complaint_to_out(c, request)
+    return _complaint_to_out(c, request, include_attachment_data=True)
 
 
 @router.post("/{complaint_id}/assign", response_model=ComplaintOut)
@@ -399,7 +399,7 @@ def assign_complaint(
     _notify(db, c.citizen_id, c.id, "Complaint assigned", f"Your complaint '{c.title}' has been assigned.")
     db.commit()
     db.refresh(c)
-    return _complaint_to_out(c, request)
+    return _complaint_to_out(c, request, include_attachment_data=True)
 
 
 @router.post("/{complaint_id}/attachments", status_code=status.HTTP_201_CREATED)

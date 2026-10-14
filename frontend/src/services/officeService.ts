@@ -43,13 +43,30 @@ export function getEstimatedWalkTime(distanceKm: number): string {
   return `~${mins} mins walk`;
 }
 
+const officeCache: Record<string, { data: PublicOffice[]; timestamp: number }> = {};
+
 export const officeService = {
+  getCachedOffices(lat: number, lng: number, category?: string): PublicOffice[] | null {
+    const key = `${lat.toFixed(2)}_${lng.toFixed(2)}_${category || "all"}`;
+    const hit = officeCache[key];
+    if (hit && Date.now() - hit.timestamp < 120000) {
+      return hit.data;
+    }
+    return null;
+  },
+
   async getNearestOffices(
     lat: number,
     lng: number,
     category?: string,
     radiusKm: number = 30
   ): Promise<PublicOffice[]> {
+    const key = `${lat.toFixed(2)}_${lng.toFixed(2)}_${category || "all"}`;
+    const hit = officeCache[key];
+    if (hit && Date.now() - hit.timestamp < 60000) {
+      return hit.data;
+    }
+
     try {
       const params: Record<string, string | number> = {
         lat,
@@ -60,10 +77,13 @@ export const officeService = {
         params.category = category;
       }
       const { data } = await api.get<PublicOffice[]>("/public-offices", { params });
+      officeCache[key] = { data, timestamp: Date.now() };
       return data;
     } catch (err) {
       console.warn("Failed to fetch public offices from backend, using local resolver", err);
-      return generateLocalOffices(lat, lng, category);
+      const fallback = generateLocalOffices(lat, lng, category);
+      officeCache[key] = { data: fallback, timestamp: Date.now() };
+      return fallback;
     }
   },
 };

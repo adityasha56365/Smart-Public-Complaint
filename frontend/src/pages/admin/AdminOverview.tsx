@@ -14,25 +14,54 @@ export default function AdminOverview({
   openComplaint: (id: number) => void;
   navigate: (id: string) => void;
 }) {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cachedStats = adminService.getCachedStats();
+  const cachedComplaints = complaintService.getCached({ page: 1, page_size: 5 });
+
+  const [stats, setStats] = useState<DashboardStats | null>(cachedStats);
+  const [complaints, setComplaints] = useState<Complaint[]>(() => cachedComplaints?.items || []);
+  const [loading, setLoading] = useState(() => !cachedStats);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([
-      adminService.stats(),
-      complaintService.list({ page: 1, page_size: 5 }),
-    ])
-      .then(([s, c]) => {
-        setStats(s);
-        setComplaints(c.items);
-      })
-      .catch(() => setError("Failed to load dashboard data."))
-      .finally(() => setLoading(false));
+    let isCancelled = false;
+    const load = () => {
+      Promise.all([
+        adminService.stats(),
+        complaintService.list({ page: 1, page_size: 5 }),
+      ])
+        .then(([s, c]) => {
+          if (!isCancelled) {
+            setStats(s);
+            setComplaints(c.items);
+            setLoading(false);
+          }
+        })
+        .catch(() => {
+          if (!isCancelled && !stats) setError("Failed to load dashboard data.");
+          if (!isCancelled) setLoading(false);
+        });
+    };
+
+    load();
+
+    const onFocus = () => load();
+    window.addEventListener("focus", onFocus);
+    const interval = setInterval(load, 45000);
+
+    return () => {
+      isCancelled = true;
+      window.removeEventListener("focus", onFocus);
+      clearInterval(interval);
+    };
   }, []);
 
-  if (loading) return <div className="admin-page"><Spinner /></div>;
+  if (loading && !stats) {
+    return (
+      <div className="admin-page" style={{ padding: 40, textAlign: "center" }}>
+        <Spinner />
+      </div>
+    );
+  }
 
   return (
     <div className="admin-page">
