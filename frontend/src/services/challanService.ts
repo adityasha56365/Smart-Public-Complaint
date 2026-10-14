@@ -8,6 +8,11 @@ import type {
 export interface CreateChallanPayload {
   challan_number: string;
   vehicle_number: string;
+  owner_name?: string;
+  vehicle_type?: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
   issue_date: string;
   issuing_authority?: string;
   jurisdiction?: string;
@@ -18,6 +23,7 @@ export interface CreateChallanPayload {
     mime_type: string;
     size_bytes: number;
     attachment_type?: string;
+    evidence_type?: string;
     file_data?: string;
   }[];
 }

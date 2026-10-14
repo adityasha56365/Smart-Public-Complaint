@@ -43,6 +43,11 @@ def _serialize_challan(c: ChallanComplaint) -> ChallanComplaintOut:
         citizen_phone=c.citizen.phone if c.citizen else None,
         challan_number=c.challan_number,
         vehicle_number=c.vehicle_number,
+        owner_name=c.owner_name,
+        vehicle_type=c.vehicle_type,
+        contact_name=c.contact_name or (c.citizen.full_name if c.citizen else None),
+        contact_email=c.contact_email or (c.citizen.email if c.citizen else None),
+        contact_phone=c.contact_phone or (c.citizen.phone if c.citizen else None),
         issue_date=c.issue_date,
         issuing_authority=c.issuing_authority,
         jurisdiction=c.jurisdiction,
@@ -68,6 +73,7 @@ def _serialize_challan(c: ChallanComplaint) -> ChallanComplaintOut:
                 mime_type=e.mime_type,
                 size_bytes=e.size_bytes,
                 attachment_type=e.attachment_type,
+                evidence_type=e.evidence_type,
                 file_data=e.file_data,
                 is_citizen_response=e.is_citizen_response,
                 created_at=e.created_at,
@@ -128,6 +134,19 @@ def create_challan_complaint(
             detail=f"An active dispute for challan {clean_challan} is already under review with Reference ID {existing.reference_id}.",
         )
 
+    # Validate compulsory vehicle image evidence (front or back image of vehicle is compulsory)
+    has_vehicle_image = False
+    if body.evidence:
+        for ev in body.evidence:
+            if ev.evidence_type in ("vehicle_front", "vehicle_back") or ev.attachment_type == "image":
+                has_vehicle_image = True
+                break
+    if not has_vehicle_image:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Vehicle photo (Front or Back image of vehicle) is compulsory for Challan dispute verification.",
+        )
+
     # Generate unique reference ID
     year = datetime.now(timezone.utc).year
     ref_id = f"CHL-{year}-{uuid.uuid4().hex[:6].upper()}"
@@ -137,6 +156,11 @@ def create_challan_complaint(
         citizen_id=current_user.id,
         challan_number=clean_challan,
         vehicle_number=clean_vehicle,
+        owner_name=body.owner_name.strip() if body.owner_name else None,
+        vehicle_type=body.vehicle_type.strip() if body.vehicle_type else None,
+        contact_name=body.contact_name.strip() if body.contact_name else current_user.full_name,
+        contact_email=body.contact_email.strip() if body.contact_email else current_user.email,
+        contact_phone=body.contact_phone.strip() if body.contact_phone else current_user.phone,
         issue_date=body.issue_date,
         issuing_authority=body.issuing_authority.strip() if body.issuing_authority else None,
         jurisdiction=body.jurisdiction.strip() if body.jurisdiction else None,
@@ -161,6 +185,7 @@ def create_challan_complaint(
                 mime_type=ev.mime_type,
                 size_bytes=ev.size_bytes,
                 attachment_type=ev.attachment_type or "image",
+                evidence_type=ev.evidence_type or "vehicle_front",
                 file_data=ev.file_data,
                 is_citizen_response=False,
             )

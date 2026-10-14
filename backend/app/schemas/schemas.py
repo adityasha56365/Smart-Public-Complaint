@@ -378,6 +378,7 @@ class ChallanEvidenceIn(BaseModel):
     mime_type: str = Field(..., max_length=100)
     size_bytes: int
     attachment_type: str = "image"
+    evidence_type: Optional[str] = "vehicle_front"
     file_data: Optional[str] = None
 
 
@@ -388,6 +389,7 @@ class ChallanEvidenceOut(BaseModel):
     mime_type: str
     size_bytes: int
     attachment_type: str
+    evidence_type: Optional[str] = None
     file_data: Optional[str] = None
     is_citizen_response: bool
     created_at: datetime
@@ -419,6 +421,11 @@ class ChallanReviewOut(BaseModel):
 class ChallanComplaintCreate(BaseModel):
     challan_number: str = Field(..., min_length=3, max_length=50)
     vehicle_number: str = Field(..., min_length=3, max_length=30)
+    owner_name: Optional[str] = Field(None, max_length=120)
+    vehicle_type: Optional[str] = Field(None, max_length=50)
+    contact_name: Optional[str] = Field(None, max_length=120)
+    contact_email: Optional[str] = Field(None, max_length=255)
+    contact_phone: Optional[str] = Field(None, max_length=20)
     issue_date: datetime
     issuing_authority: Optional[str] = None
     jurisdiction: Optional[str] = None
@@ -436,6 +443,11 @@ class ChallanComplaintOut(BaseModel):
     citizen_phone: Optional[str] = None
     challan_number: str
     vehicle_number: str
+    owner_name: Optional[str] = None
+    vehicle_type: Optional[str] = None
+    contact_name: Optional[str] = None
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
     issue_date: datetime
     issuing_authority: Optional[str] = None
     jurisdiction: Optional[str] = None

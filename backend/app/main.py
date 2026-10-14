@@ -51,6 +51,23 @@ async def lifespan(app: FastAPI):
                         conn.commit()
                     except Exception:
                         pass
+                for col, col_type in [
+                    ("owner_name", "VARCHAR(120)"),
+                    ("vehicle_type", "VARCHAR(50)"),
+                    ("contact_name", "VARCHAR(120)"),
+                    ("contact_email", "VARCHAR(255)"),
+                    ("contact_phone", "VARCHAR(20)"),
+                ]:
+                    try:
+                        conn.execute(sa.text(f"ALTER TABLE challan_complaints ADD COLUMN IF NOT EXISTS {col} {col_type};"))
+                        conn.commit()
+                    except Exception:
+                        pass
+                try:
+                    conn.execute(sa.text("ALTER TABLE challan_evidence ADD COLUMN IF NOT EXISTS evidence_type VARCHAR(50) DEFAULT 'vehicle_front';"))
+                    conn.commit()
+                except Exception:
+                    pass
                 try:
                     conn.execute(sa.text("ALTER TABLE complaint_attachments ADD COLUMN IF NOT EXISTS file_data TEXT;"))
                     conn.commit()

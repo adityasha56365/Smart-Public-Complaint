@@ -42,6 +42,30 @@ export const CHALLAN_STATUS_LABELS: Record<ChallanStatus, { label: string; color
   dispute_rejected: { label: "Dispute Rejected", color: "var(--error)", bg: "#fdf0ed" },
 };
 
+export const VEHICLE_TYPE_OPTIONS = [
+  { value: "two_wheeler", label: "Two Wheeler (Bike, Scooter, Moped)" },
+  { value: "four_wheeler", label: "Four Wheeler (Car, Jeep, SUV, Van)" },
+  { value: "others", label: "Others (Bus, Truck, Auto Rickshaw, Commercial)" },
+];
+
+export const EVIDENCE_TYPE_OPTIONS = [
+  { value: "vehicle_front", label: "Front Image of Vehicle", compulsory: true, hint: "Shows registration plate & front view" },
+  { value: "vehicle_back", label: "Back Image of Vehicle", compulsory: true, hint: "Shows rear registration plate & make" },
+  { value: "rc_book", label: "RC Book Copy", compulsory: false, hint: "Registration Certificate / Smart card" },
+  { value: "payment_proof", label: "Payment Proof / Receipt", compulsory: false, hint: "E-challan receipt or bank statement" },
+  { value: "aadhar_card", label: "Aadhar Card / Identity Proof", compulsory: false, hint: "Optional government identity card" },
+  { value: "other_document", label: "Other Supporting Document", compulsory: false, hint: "Toll receipt, parking slip, etc." },
+];
+
+export const EVIDENCE_TYPE_LABELS: Record<string, string> = {
+  vehicle_front: "Front Image of Vehicle",
+  vehicle_back: "Back Image of Vehicle",
+  rc_book: "RC Book Copy",
+  payment_proof: "Payment Proof",
+  aadhar_card: "Aadhar Card",
+  other_document: "Supporting Document",
+};
+
 export interface ChallanEvidence {
   id: number;
   original_filename: string;
@@ -49,6 +73,7 @@ export interface ChallanEvidence {
   mime_type: string;
   size_bytes: number;
   attachment_type: string;
+  evidence_type?: string | null;
   file_data?: string | null;
   is_citizen_response: boolean;
   created_at: string;
@@ -80,6 +105,11 @@ export interface ChallanComplaint {
   citizen_phone?: string | null;
   challan_number: string;
   vehicle_number: string;
+  owner_name?: string | null;
+  vehicle_type?: string | null;
+  contact_name?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
   issue_date: string;
   issuing_authority?: string | null;
   jurisdiction?: string | null;

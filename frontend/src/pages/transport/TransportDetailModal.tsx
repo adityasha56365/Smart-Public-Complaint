@@ -6,6 +6,8 @@ import { challanService } from "../../services/challanService";
 import {
   CHALLAN_REASON_LABELS,
   CHALLAN_STATUS_LABELS,
+  EVIDENCE_TYPE_LABELS,
+  VEHICLE_TYPE_OPTIONS,
   type ChallanComplaint,
 } from "../../types/challan";
 
@@ -178,6 +180,9 @@ export default function TransportDetailModal({
           <div style={{ background: "#fafbf9", borderRadius: 10, padding: 14 }}>
             <h4 style={{ margin: "0 0 10px", fontSize: 13, color: "var(--navy)" }}>Challan Information</h4>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div><strong>Vehicle Reg:</strong> {data.vehicle_number}</div>
+              <div><strong>Vehicle Type:</strong> {VEHICLE_TYPE_OPTIONS.find((v) => v.value === data.vehicle_type)?.label || data.vehicle_type || "N/A"}</div>
+              <div><strong>Owner as per RC:</strong> {data.owner_name || "N/A"}</div>
               <div><strong>Issue Date:</strong> {new Date(data.issue_date).toLocaleDateString()}</div>
               <div><strong>Authority:</strong> {data.issuing_authority || "Traffic Cell"}</div>
               <div style={{ gridColumn: "span 2" }}>
@@ -191,9 +196,9 @@ export default function TransportDetailModal({
 
           <div style={{ background: "#fafbf9", borderRadius: 10, padding: 14 }}>
             <h4 style={{ margin: "0 0 10px", fontSize: 13, color: "var(--navy)" }}>Citizen Applicant</h4>
-            <div><strong>Name:</strong> {data.citizen_name || "Citizen User"}</div>
-            {data.citizen_email && <div><strong>Email:</strong> {data.citizen_email}</div>}
-            {data.citizen_phone && <div><strong>Phone:</strong> {data.citizen_phone}</div>}
+            <div><strong>Name:</strong> {data.contact_name || data.citizen_name || "Citizen User"}</div>
+            <div><strong>Email:</strong> {data.contact_email || data.citizen_email || "N/A"}</div>
+            <div><strong>Phone:</strong> {data.contact_phone || data.citizen_phone || "N/A"}</div>
             <div><strong>Filed On:</strong> {new Date(data.created_at).toLocaleString()}</div>
           </div>
         </div>
@@ -269,7 +274,26 @@ export default function TransportDetailModal({
                       <span style={{ fontSize: 9, color: "var(--muted)" }}>Document</span>
                     </div>
                   )}
-                  <p style={{ margin: "4px 0 0", fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div style={{ marginTop: 4 }}>
+                    <span
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                        background: ev.evidence_type?.startsWith("vehicle_") ? "#eaf6f4" : "#eee",
+                        color: ev.evidence_type?.startsWith("vehicle_") ? "var(--teal)" : "#444",
+                        display: "inline-block",
+                        maxWidth: "100%",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {EVIDENCE_TYPE_LABELS[ev.evidence_type || ""] || ev.evidence_type || "Supporting Evidence"}
+                    </span>
+                  </div>
+                  <p style={{ margin: "4px 0 0", fontSize: 10, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--navy)" }} title={ev.original_filename}>
                     {ev.original_filename}
                   </p>
                   {ev.is_citizen_response && (
