@@ -135,7 +135,6 @@ Reviewers can test each distinct user experience using these pre-seeded accounts
 |---|---|---|---|---|
 | 👑 **Public Administration** | Super Administrator | `admin@civicly.app` | `AdminSecure2026!` | `/admin` |
 | 🚦 **Transport Department** | Transport Admin | `transport.admin@civicly.app` | `Transport@123` | `/transport-admin` |
-| 👮 **Transport Field Staff** | Transport Officer | `transport.officer@civicly.app` | `Transport@123` | `/transport-admin` |
 | 👤 **Citizen Portal** | Citizen User | Register in 10s via UI | Custom | `/` |
 
 ---
