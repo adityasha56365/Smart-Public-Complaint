@@ -1,7 +1,7 @@
 import { useState } from "react";
 import ErrorBoundary from "../../components/common/ErrorBoundary";
 import TransportSidebar from "../../components/layout/TransportSidebar";
-import AdminTopbar from "../../components/layout/AdminTopbar";
+import TransportTopbar from "../../components/layout/TransportTopbar";
 import TransportOverview from "./TransportOverview";
 import TransportComplaints from "./TransportComplaints";
 
@@ -25,8 +25,8 @@ export default function TransportApp({ onLogout }: { onLogout: () => void }) {
       />
       <div className="admin-sidebar-scrim" onClick={() => setMenuOpen(false)}></div>
       <main className="admin-main">
-        <AdminTopbar
-          active="transport"
+        <TransportTopbar
+          active={active}
           onMenu={() => setMenuOpen(!menuOpen)}
         />
         <ErrorBoundary>

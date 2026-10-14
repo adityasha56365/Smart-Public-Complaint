@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import Icon, { IconName } from "../common/Icon";
 import Brand from "../common/Brand";
 import { useAuth } from "../../hooks/useAuth";
@@ -32,7 +31,6 @@ export default function TransportSidebar({
   onLogout: () => void;
 }) {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const initials =
     user?.full_name
       ?.split(" ")
@@ -49,7 +47,7 @@ export default function TransportSidebar({
   return (
     <aside className="admin-sidebar" style={{ background: "#0e2433" }}>
       <Brand />
-      <div style={{ padding: "0 14px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ padding: "0 14px 14px" }}>
         <span
           style={{
             display: "inline-block",
@@ -61,33 +59,11 @@ export default function TransportSidebar({
             fontWeight: 800,
             letterSpacing: 0.5,
             textAlign: "center",
+            width: "100%",
           }}
         >
           TRANSPORT ADMIN PORTAL
         </span>
-
-        {user?.role === "admin" && (
-          <button
-            type="button"
-            onClick={() => navigate("/admin")}
-            style={{
-              background: "rgba(255,255,255,0.08)",
-              border: "1px solid rgba(255,255,255,0.15)",
-              color: "#e2e8f0",
-              fontSize: 11,
-              padding: "6px 10px",
-              borderRadius: 6,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              width: "100%",
-            }}
-          >
-            <Icon name="home" size={14} />
-            <span>Public Admin Dashboard</span>
-          </button>
-        )}
       </div>
 
       <div className="admin-nav-scroll">

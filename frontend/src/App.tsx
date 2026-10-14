@@ -36,7 +36,7 @@ function AppRoutes() {
                 user.role === "citizen"
                   ? "/"
                   : user.role === "transport_admin" || user.role === "transport_officer" || user.role === "transport_supervisor"
-                  ? "/transport-dashboard"
+                  ? "/transport-admin"
                   : "/admin"
               }
               replace
@@ -52,6 +52,14 @@ function AppRoutes() {
           <RequireAdmin>
             <AdminApp onLogout={handleLogout} />
           </RequireAdmin>
+        }
+      />
+      <Route
+        path="/transport-admin/*"
+        element={
+          <RequireTransport>
+            <TransportApp onLogout={handleLogout} />
+          </RequireTransport>
         }
       />
       <Route

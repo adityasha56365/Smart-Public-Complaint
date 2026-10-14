@@ -14,5 +14,8 @@ export default function RequireAdmin({ children }: { children: React.ReactNode }
   }
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (user?.role === "citizen") return <Navigate to="/" replace />;
+  if (user?.role === "transport_admin" || user?.role === "transport_officer" || user?.role === "transport_supervisor") {
+    return <Navigate to="/transport-admin" replace />;
+  }
   return <>{children}</>;
 }

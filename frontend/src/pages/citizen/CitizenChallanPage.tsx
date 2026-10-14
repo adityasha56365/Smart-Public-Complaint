@@ -289,7 +289,7 @@ export default function CitizenChallanPage() {
             Dispute Registered Successfully!
           </h2>
           <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-            Your complaint has been forwarded to the **Transport Department** for official verification.
+            Your complaint has been forwarded to the **Transport Admin** for official verification.
           </p>
 
           <div
@@ -604,7 +604,7 @@ export default function CitizenChallanPage() {
               Confirm Challan Dispute Submission
             </h3>
             <p style={{ margin: "0 0 16px", color: "var(--muted)", fontSize: 12 }}>
-              Please verify all particulars. Once submitted, your case will be routed to the Transport Department review team.
+              Please verify all particulars. Once submitted, your case will be routed to the Transport Admin review team.
             </p>
 
             <div style={{ background: "#f8faf9", borderRadius: 10, padding: 14, fontSize: 12, lineHeight: 1.6 }}>
