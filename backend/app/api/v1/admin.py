@@ -144,16 +144,21 @@ def list_users(
 
 
 @users_router.post("", response_model=UserOut, status_code=201)
-def create_user(body: AdminUserCreate, db: Session = Depends(get_db), _: User = Depends(require_admin)):
-    if body.email and db.query(User).filter(User.email == body.email).first():
-        raise HTTPException(status_code=409, detail="Email already exists.")
+def create_user(body: AdminUserCreate, db: Session = Depends(get_db), _: User = Depends(require_supervisor)):
+    email = body.email.strip().lower() if body.email and body.email.strip() else None
+    if email and db.query(User).filter(User.email.ilike(email)).first():
+        raise HTTPException(status_code=409, detail="A user with this email already exists.")
+    phone = body.phone.strip() if body.phone and body.phone.strip() else None
+    if phone and db.query(User).filter(User.phone == phone).first():
+        raise HTTPException(status_code=409, detail="A user with this phone number already exists.")
     u = User(
-        full_name=body.full_name,
-        email=body.email,
-        phone=body.phone,
+        full_name=body.full_name.strip(),
+        email=email,
+        phone=phone,
         hashed_password=hash_password(body.password),
         role=body.role,
         department_id=body.department_id,
+        is_active=True,
     )
     db.add(u)
     db.commit()

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ErrorBoundary from "../../components/common/ErrorBoundary";
 import AdminSidebar from "../../components/layout/AdminSidebar";
 import AdminTopbar from "../../components/layout/AdminTopbar";
 import AdminOverview from "./AdminOverview";
@@ -70,7 +71,9 @@ export default function AdminApp({ onLogout }: { onLogout: () => void }) {
           active={detailId != null ? "admin-complaints" : active}
           onMenu={() => setMenuOpen(!menuOpen)}
         />
-        {page}
+        <ErrorBoundary>
+          {page}
+        </ErrorBoundary>
       </main>
     </div>
   );

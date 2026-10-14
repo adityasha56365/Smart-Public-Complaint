@@ -325,7 +325,7 @@ class AdminUserCreate(BaseModel):
     full_name: str = Field(..., min_length=2, max_length=120)
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
-    password: str = Field(..., min_length=8)
+    password: str = Field(..., min_length=6, max_length=128)
     role: UserRole = UserRole.officer
     department_id: Optional[int] = None
 
