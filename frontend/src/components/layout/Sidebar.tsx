@@ -12,6 +12,7 @@ export interface NavItemConfig {
 export const navItems: NavItemConfig[] = [
   { id: "home", labelKey: "nav_home", label: "Home", icon: "home" },
   { id: "complaints", labelKey: "nav_complaints", label: "My complaints", icon: "file" },
+  { id: "challan", labelKey: "nav_challan", label: "Challan Complaint", icon: "traffic" },
   { id: "map", labelKey: "nav_map", label: "Nearby issues", icon: "map" },
   { id: "notifications", labelKey: "nav_notifications", label: "Notifications", icon: "bell" },
   { id: "profile", labelKey: "nav_profile", label: "Profile", icon: "user" },

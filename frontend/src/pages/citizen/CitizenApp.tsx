@@ -6,6 +6,7 @@ import Topbar from "../../components/layout/Topbar";
 import Home from "./Home";
 import ComplaintsPage from "./ComplaintsPage";
 import ComplaintDetailPage from "./ComplaintDetailPage";
+import CitizenChallanPage from "./CitizenChallanPage";
 import MapPage from "./MapPage";
 import NotificationsPage from "./NotificationsPage";
 import ProfilePage from "./ProfilePage";
@@ -83,6 +84,11 @@ export default function CitizenApp() {
                 <ComplaintsPage openDetail={setDetailId} openReport={() => setReportOpen(true)} />
               </div>
             )}
+            {visitedTabs.has("challan") && (
+              <div style={{ display: active === "challan" ? "block" : "none" }}>
+                <CitizenChallanPage />
+              </div>
+            )}
             {visitedTabs.has("map") && (
               <div style={{ display: active === "map" ? "block" : "none" }}>
                 <MapPage openDetail={setDetailId} />
@@ -102,7 +108,7 @@ export default function CitizenApp() {
         )}
       </main>
       <nav className="mobile-nav">
-        {navItems.slice(0, 5).map((item) => (
+        {navItems.map((item) => (
           <button
             key={item.id}
             className={active === item.id ? "active" : ""}

@@ -4,7 +4,14 @@ from typing import Any, List, Optional
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from app.models.models import AttachmentType, ComplaintStatus, Priority, UserRole
+from app.models.models import (
+    AttachmentType,
+    ChallanDisputeReason,
+    ChallanStatus,
+    ComplaintStatus,
+    Priority,
+    UserRole,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -360,3 +367,131 @@ class AuditLogOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# ---------------------------------------------------------------------------
+# Challan Complaint Module Schemas
+# ---------------------------------------------------------------------------
+
+class ChallanEvidenceIn(BaseModel):
+    original_filename: str = Field(..., max_length=255)
+    mime_type: str = Field(..., max_length=100)
+    size_bytes: int
+    attachment_type: str = "image"
+    file_data: Optional[str] = None
+
+
+class ChallanEvidenceOut(BaseModel):
+    id: int
+    original_filename: str
+    stored_filename: str
+    mime_type: str
+    size_bytes: int
+    attachment_type: str
+    file_data: Optional[str] = None
+    is_citizen_response: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ChallanStatusHistoryOut(BaseModel):
+    id: int
+    from_status: Optional[str]
+    to_status: str
+    changed_by_name: Optional[str] = None
+    note: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ChallanReviewOut(BaseModel):
+    id: int
+    officer_name: Optional[str] = None
+    findings: str
+    action_taken: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ChallanComplaintCreate(BaseModel):
+    challan_number: str = Field(..., min_length=3, max_length=50)
+    vehicle_number: str = Field(..., min_length=3, max_length=30)
+    issue_date: datetime
+    issuing_authority: Optional[str] = None
+    jurisdiction: Optional[str] = None
+    dispute_reason: ChallanDisputeReason
+    description: str = Field(..., min_length=10, max_length=3000)
+    evidence: Optional[List[ChallanEvidenceIn]] = None
+
+
+class ChallanComplaintOut(BaseModel):
+    id: int
+    reference_id: str
+    citizen_id: int
+    citizen_name: Optional[str] = None
+    citizen_email: Optional[str] = None
+    citizen_phone: Optional[str] = None
+    challan_number: str
+    vehicle_number: str
+    issue_date: datetime
+    issuing_authority: Optional[str] = None
+    jurisdiction: Optional[str] = None
+    dispute_reason: ChallanDisputeReason
+    description: str
+    status: ChallanStatus
+    assigned_officer_id: Optional[int] = None
+    assigned_officer_name: Optional[str] = None
+    assigned_department_id: Optional[int] = None
+    decision_type: Optional[str] = None
+    decision_reason: Optional[str] = None
+    decision_by_name: Optional[str] = None
+    decision_date: Optional[datetime] = None
+    additional_info_requested: Optional[str] = None
+    citizen_response_text: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    evidence: List[ChallanEvidenceOut] = []
+    status_history: List[ChallanStatusHistoryOut] = []
+    reviews: List[ChallanReviewOut] = []
+
+    model_config = {"from_attributes": True}
+
+
+class ChallanCitizenResponse(BaseModel):
+    response_text: str = Field(..., min_length=5, max_length=3000)
+    evidence: Optional[List[ChallanEvidenceIn]] = None
+
+
+class ChallanAssignRequest(BaseModel):
+    officer_id: int
+    note: Optional[str] = None
+
+
+class ChallanReviewCreate(BaseModel):
+    findings: str = Field(..., min_length=5, max_length=3000)
+    action_taken: str = "reviewed"
+
+
+class ChallanRequestInfo(BaseModel):
+    message: str = Field(..., min_length=5, max_length=2000)
+
+
+class ChallanDecisionRequest(BaseModel):
+    decision_type: str = Field(..., description="upheld | dispute_rejected | correction_recommended | correction_approved | cancellation_approved | cancellation_executed")
+    reason: str = Field(..., min_length=5, max_length=3000)
+
+
+class TransportDashboardSummary(BaseModel):
+    total_disputes: int
+    newly_submitted: int
+    pending_review: int
+    under_review: int
+    awaiting_citizen_info: int
+    decisions_issued: int
+    cancellations_approved: int
+    cancellations_executed: int
+    upheld_count: int
+    rejected_count: int

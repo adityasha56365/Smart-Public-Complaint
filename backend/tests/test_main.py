@@ -92,6 +92,34 @@ def officer_token(db, client):
 
 
 @pytest.fixture
+def transport_officer_token(db, client):
+    officer = User(
+        full_name="Transport Officer User",
+        email="transport_officer@test.com",
+        hashed_password=hash_password("transportpassword"),
+        role=UserRole.transport_officer,
+    )
+    db.add(officer)
+    db.commit()
+    resp = client.post("/api/v1/auth/login", json={"email": "transport_officer@test.com", "password": "transportpassword"})
+    return resp.json()["access_token"]
+
+
+@pytest.fixture
+def transport_supervisor_token(db, client):
+    supervisor = User(
+        full_name="Transport Supervisor User",
+        email="transport_supervisor@test.com",
+        hashed_password=hash_password("transportsupervisorpassword"),
+        role=UserRole.transport_supervisor,
+    )
+    db.add(supervisor)
+    db.commit()
+    resp = client.post("/api/v1/auth/login", json={"email": "transport_supervisor@test.com", "password": "transportsupervisorpassword"})
+    return resp.json()["access_token"]
+
+
+@pytest.fixture
 def sample_category(db):
     cat = ComplaintCategory(name="Roads & Potholes", icon="road")
     db.add(cat)
@@ -366,3 +394,165 @@ class TestHealth:
         resp = client.get("/health")
         assert resp.status_code == 200
         assert resp.json()["status"] == "ok"
+
+
+# ---------------------------------------------------------------------------
+# Challan Complaint Module Tests (Strict Queue Separation & RBAC)
+# ---------------------------------------------------------------------------
+
+class TestChallanComplaintModule:
+    sample_challan_payload = {
+        "challan_number": "DL1234567890",
+        "vehicle_number": "DL01AB1234",
+        "issue_date": "2026-03-01T10:00:00Z",
+        "issuing_authority": "Delhi Traffic Police, East Zone",
+        "jurisdiction": "East Zone",
+        "dispute_reason": "wrong_vehicle",
+        "description": "The vehicle in the violation camera photo is a commercial truck whereas my vehicle is a two-wheeler motorcycle.",
+        "evidence": [
+            {
+                "original_filename": "rc_copy.png",
+                "mime_type": "image/png",
+                "size_bytes": 102400,
+                "attachment_type": "image",
+                "file_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+            }
+        ],
+    }
+
+    def test_citizen_can_create_challan_dispute(self, client, citizen_token):
+        resp = client.post(
+            "/api/v1/challan-complaints",
+            json=self.sample_challan_payload,
+            headers={"Authorization": f"Bearer {citizen_token}"},
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["reference_id"].startswith("CHL-")
+        assert data["challan_number"] == "DL1234567890"
+        assert data["status"] == "submitted"
+        assert len(data["evidence"]) == 1
+        assert len(data["status_history"]) >= 1
+
+    def test_duplicate_challan_dispute_rejected(self, client, citizen_token):
+        # First creation
+        client.post(
+            "/api/v1/challan-complaints",
+            json=self.sample_challan_payload,
+            headers={"Authorization": f"Bearer {citizen_token}"},
+        )
+        # Duplicate submission with same challan and vehicle
+        dup_resp = client.post(
+            "/api/v1/challan-complaints",
+            json=self.sample_challan_payload,
+            headers={"Authorization": f"Bearer {citizen_token}"},
+        )
+        assert dup_resp.status_code == 409
+        assert "already under review" in dup_resp.json()["detail"]
+
+    def test_critical_queue_separation(self, client, citizen_token, admin_token, officer_token):
+        """Verify Challan Complaint NEVER appears in the normal Public Complaint queue or admin tables."""
+        # 1. Citizen creates a challan dispute
+        challan_resp = client.post(
+            "/api/v1/challan-complaints",
+            json=self.sample_challan_payload,
+            headers={"Authorization": f"Bearer {citizen_token}"},
+        )
+        assert challan_resp.status_code == 201
+        challan_ref = challan_resp.json()["reference_id"]
+
+        # 2. General Public Complaint list (/api/v1/complaints) MUST NOT contain this challan
+        general_complaints_resp = client.get(
+            "/api/v1/complaints",
+            headers={"Authorization": f"Bearer {officer_token}"},
+        )
+        assert general_complaints_resp.status_code == 200
+        items = general_complaints_resp.json()["items"]
+        assert all(c["reference_number"] != challan_ref for c in items)
+
+        # 3. Citizen's normal public complaint list (/api/v1/complaints) MUST NOT contain this challan
+        my_public_resp = client.get(
+            "/api/v1/complaints",
+            headers={"Authorization": f"Bearer {citizen_token}"},
+        )
+        assert my_public_resp.status_code == 200
+        my_items = my_public_resp.json()["items"]
+        assert all(c["reference_number"] != challan_ref for c in my_items)
+
+        # 4. Admin stats (/api/v1/admin/stats) MUST NOT count challan disputes
+        stats_resp = client.get(
+            "/api/v1/admin/stats",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert stats_resp.status_code == 200
+        assert stats_resp.json()["total"] == 0
+
+    def test_regular_officer_cannot_access_transport_endpoints(self, client, officer_token, citizen_token):
+        """Regular municipal officers are strictly forbidden from transport endpoints."""
+        resp = client.get(
+            "/api/v1/transport/challan-complaints",
+            headers={"Authorization": f"Bearer {officer_token}"},
+        )
+        assert resp.status_code == 403
+
+        # Citizen also cannot access transport endpoints
+        cit_resp = client.get(
+            "/api/v1/transport/challan-complaints",
+            headers={"Authorization": f"Bearer {citizen_token}"},
+        )
+        assert cit_resp.status_code == 403
+
+    def test_transport_officer_workflow(self, client, citizen_token, transport_officer_token, transport_supervisor_token):
+        """Full dispute review, info request, response, and decision lifecycle."""
+        # Citizen files dispute
+        create_resp = client.post(
+            "/api/v1/challan-complaints",
+            json=self.sample_challan_payload,
+            headers={"Authorization": f"Bearer {citizen_token}"},
+        )
+        dispute_id = create_resp.json()["id"]
+
+        # Transport officer accepts for review
+        accept_resp = client.post(
+            f"/api/v1/transport/challan-complaints/{dispute_id}/accept",
+            headers={"Authorization": f"Bearer {transport_officer_token}"},
+        )
+        assert accept_resp.status_code == 200
+        assert accept_resp.json()["status"] == "under_review"
+
+        # Transport officer requests info
+        info_resp = client.post(
+            f"/api/v1/transport/challan-complaints/{dispute_id}/request-info",
+            json={"message": "Please provide your registration certificate front and back scan."},
+            headers={"Authorization": f"Bearer {transport_officer_token}"},
+        )
+        assert info_resp.status_code == 200
+        assert info_resp.json()["status"] == "awaiting_citizen_info"
+
+        # Citizen responds
+        respond_resp = client.post(
+            f"/api/v1/challan-complaints/{dispute_id}/respond",
+            json={"response_text": "Attached my registration certificate showing two-wheeler classification."},
+            headers={"Authorization": f"Bearer {citizen_token}"},
+        )
+        assert respond_resp.status_code == 200
+        assert respond_resp.json()["status"] == "under_review"
+        assert "two-wheeler" in respond_resp.json()["citizen_response_text"]
+
+        # Ordinary transport officer CANNOT approve cancellation
+        cancel_attempt = client.post(
+            f"/api/v1/transport/challan-complaints/{dispute_id}/decision",
+            json={"decision_type": "cancellation_approved", "reason": "Confirmed photographic error."},
+            headers={"Authorization": f"Bearer {transport_officer_token}"},
+        )
+        assert cancel_attempt.status_code == 403
+
+        # Transport supervisor CAN approve cancellation
+        supervisor_resp = client.post(
+            f"/api/v1/transport/challan-complaints/{dispute_id}/decision",
+            json={"decision_type": "cancellation_approved", "reason": "Confirmed photographic error and number plate mismatch."},
+            headers={"Authorization": f"Bearer {transport_supervisor_token}"},
+        )
+        assert supervisor_resp.status_code == 200
+        assert supervisor_resp.json()["status"] == "cancellation_approved"
+        assert supervisor_resp.json()["decision_type"] == "cancellation_approved"

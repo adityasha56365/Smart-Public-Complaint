@@ -27,6 +27,7 @@ DEFAULT_DEPARTMENTS = [
     ("Storm Water Drains", "City-wide"),
     ("Electrical Maintenance", "All zones"),
     ("Parks & Recreation", "City-wide"),
+    ("Transport Department", "State / City-wide Jurisdiction"),
 ]
 
 DEFAULT_CATEGORIES = [
@@ -41,7 +42,15 @@ DEFAULT_CATEGORIES = [
 
 
 def seed(email: str, password: str, full_name: str = "Super Administrator"):
-    # Ensure all tables exist before inserting records
+    import sqlalchemy as sa
+    # Ensure enum values and all tables exist before inserting records
+    with engine.connect() as conn:
+        for val in ["transport_officer", "transport_supervisor"]:
+            try:
+                conn.execute(sa.text(f"ALTER TYPE userrole ADD VALUE IF NOT EXISTS '{val}';"))
+                conn.commit()
+            except Exception:
+                pass
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
@@ -77,6 +86,34 @@ def seed(email: str, password: str, full_name: str = "Super Administrator"):
             )
             db.add(admin)
             print(f"Created admin user: {email}")
+
+        # Create default Transport Officer
+        transport_officer_email = "transport.officer@civicly.app"
+        if not db.query(User).filter(User.email == transport_officer_email).first():
+            t_officer = User(
+                full_name="Rajesh Verma (Transport Officer)",
+                email=transport_officer_email,
+                hashed_password=hash_password("TransportSecure2026!"),
+                role=UserRole.transport_officer,
+                department_id=dept_map.get("Transport Department"),
+                is_active=True,
+            )
+            db.add(t_officer)
+            print(f"Created Transport Officer: {transport_officer_email}")
+
+        # Create default Transport Supervisor
+        transport_supervisor_email = "transport.supervisor@civicly.app"
+        if not db.query(User).filter(User.email == transport_supervisor_email).first():
+            t_supervisor = User(
+                full_name="Meena Iyer (Transport Supervisor)",
+                email=transport_supervisor_email,
+                hashed_password=hash_password("TransportSecure2026!"),
+                role=UserRole.transport_supervisor,
+                department_id=dept_map.get("Transport Department"),
+                is_active=True,
+            )
+            db.add(t_supervisor)
+            print(f"Created Transport Supervisor: {transport_supervisor_email}")
 
         db.commit()
         print("Seed complete.")

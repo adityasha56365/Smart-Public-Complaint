@@ -26,6 +26,8 @@ class UserRole(str, enum.Enum):
     officer = "officer"
     supervisor = "supervisor"
     admin = "admin"
+    transport_officer = "transport_officer"
+    transport_supervisor = "transport_supervisor"
 
 
 class ComplaintStatus(str, enum.Enum):
@@ -74,6 +76,8 @@ class User(Base):
     department: Mapped["Department | None"] = relationship("Department", back_populates="officers")
     complaints: Mapped[list["Complaint"]] = relationship("Complaint", back_populates="citizen", foreign_keys="Complaint.citizen_id")
     assigned_complaints: Mapped[list["ComplaintAssignment"]] = relationship("ComplaintAssignment", back_populates="officer", foreign_keys="ComplaintAssignment.officer_id")
+    challan_complaints: Mapped[list["ChallanComplaint"]] = relationship("ChallanComplaint", back_populates="citizen", foreign_keys="ChallanComplaint.citizen_id")
+    assigned_challans: Mapped[list["ChallanComplaint"]] = relationship("ChallanComplaint", back_populates="assigned_officer", foreign_keys="ChallanComplaint.assigned_officer_id")
     notifications: Mapped[list["Notification"]] = relationship("Notification", back_populates="user")
     audit_logs: Mapped[list["AuditLog"]] = relationship("AuditLog", back_populates="actor", foreign_keys="AuditLog.actor_id")
 
@@ -100,6 +104,7 @@ class Department(Base):
     officers: Mapped[list["User"]] = relationship("User", back_populates="department")
     categories: Mapped[list["ComplaintCategory"]] = relationship("ComplaintCategory", back_populates="department")
     assignments: Mapped[list["ComplaintAssignment"]] = relationship("ComplaintAssignment", back_populates="department")
+    challan_complaints: Mapped[list["ChallanComplaint"]] = relationship("ChallanComplaint", back_populates="department")
 
 
 class ComplaintCategory(Base):
@@ -259,6 +264,7 @@ class Notification(Base):
     id: Mapped[int] = mapped_column(PK_ID, primary_key=True, autoincrement=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     complaint_id: Mapped[int | None] = mapped_column(ForeignKey("complaints.id"), nullable=True)
+    challan_complaint_id: Mapped[int | None] = mapped_column(ForeignKey("challan_complaints.id"), nullable=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -294,3 +300,119 @@ class AuditLog(Base):
         Index("ix_audit_logs_resource", "resource_type", "resource_id"),
         Index("ix_audit_logs_created_at", "created_at"),
     )
+
+
+# ---------------------------------------------------------------------------
+# Challan Complaint Module (Strict Separation from General Public Complaints)
+# ---------------------------------------------------------------------------
+
+class ChallanStatus(str, enum.Enum):
+    submitted = "submitted"
+    under_review = "under_review"
+    awaiting_citizen_info = "awaiting_citizen_info"
+    upheld = "upheld"
+    correction_recommended = "correction_recommended"
+    correction_approved = "correction_approved"
+    cancellation_approved = "cancellation_approved"
+    cancellation_executed = "cancellation_executed"
+    dispute_rejected = "dispute_rejected"
+
+
+class ChallanDisputeReason(str, enum.Enum):
+    wrong_vehicle = "wrong_vehicle"
+    incorrect_reg_no = "incorrect_reg_no"
+    details_mismatch = "details_mismatch"
+    already_paid = "already_paid"
+    duplicate_challan = "duplicate_challan"
+    incorrect_location_time = "incorrect_location_time"
+    evidence_indicates_mistake = "evidence_indicates_mistake"
+    other = "other"
+
+
+class ChallanComplaint(Base):
+    __tablename__ = "challan_complaints"
+
+    id: Mapped[int] = mapped_column(PK_ID, primary_key=True, autoincrement=True, index=True)
+    reference_id: Mapped[str] = mapped_column(String(30), unique=True, nullable=False, index=True)
+    citizen_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    challan_number: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    vehicle_number: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    issue_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    issuing_authority: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    jurisdiction: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    dispute_reason: Mapped[ChallanDisputeReason] = mapped_column(Enum(ChallanDisputeReason), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[ChallanStatus] = mapped_column(
+        Enum(ChallanStatus), default=ChallanStatus.submitted, nullable=False, index=True
+    )
+    assigned_officer_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    assigned_department_id: Mapped[int | None] = mapped_column(ForeignKey("departments.id"), nullable=True)
+    decision_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    decision_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    decision_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    decision_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    additional_info_requested: Mapped[str | None] = mapped_column(Text, nullable=True)
+    citizen_response_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    citizen: Mapped["User"] = relationship("User", back_populates="challan_complaints", foreign_keys=[citizen_id])
+    assigned_officer: Mapped["User | None"] = relationship("User", foreign_keys=[assigned_officer_id])
+    decision_by: Mapped["User | None"] = relationship("User", foreign_keys=[decision_by_id])
+    department: Mapped["Department | None"] = relationship("Department", back_populates="challan_complaints")
+    evidence: Mapped[list["ChallanEvidence"]] = relationship("ChallanEvidence", back_populates="complaint", cascade="all, delete-orphan")
+    status_history: Mapped[list["ChallanStatusHistory"]] = relationship("ChallanStatusHistory", back_populates="complaint", cascade="all, delete-orphan")
+    reviews: Mapped[list["ChallanReview"]] = relationship("ChallanReview", back_populates="complaint", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_challan_citizen_status", "citizen_id", "status"),
+        Index("ix_challan_status_date", "status", "created_at"),
+    )
+
+
+class ChallanEvidence(Base):
+    __tablename__ = "challan_evidence"
+
+    id: Mapped[int] = mapped_column(PK_ID, primary_key=True, autoincrement=True, index=True)
+    complaint_id: Mapped[int] = mapped_column(ForeignKey("challan_complaints.id", ondelete="CASCADE"), nullable=False, index=True)
+    uploaded_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    stored_filename: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    mime_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    attachment_type: Mapped[str] = mapped_column(String(20), default="image", nullable=False)
+    file_data: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_citizen_response: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    complaint: Mapped["ChallanComplaint"] = relationship("ChallanComplaint", back_populates="evidence")
+    uploaded_by: Mapped["User"] = relationship("User")
+
+
+class ChallanStatusHistory(Base):
+    __tablename__ = "challan_status_history"
+
+    id: Mapped[int] = mapped_column(PK_ID, primary_key=True, autoincrement=True, index=True)
+    complaint_id: Mapped[int] = mapped_column(ForeignKey("challan_complaints.id", ondelete="CASCADE"), nullable=False, index=True)
+    from_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    to_status: Mapped[str] = mapped_column(String(50), nullable=False)
+    changed_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    complaint: Mapped["ChallanComplaint"] = relationship("ChallanComplaint", back_populates="status_history")
+    changed_by: Mapped["User"] = relationship("User")
+
+
+class ChallanReview(Base):
+    __tablename__ = "challan_reviews"
+
+    id: Mapped[int] = mapped_column(PK_ID, primary_key=True, autoincrement=True, index=True)
+    complaint_id: Mapped[int] = mapped_column(ForeignKey("challan_complaints.id", ondelete="CASCADE"), nullable=False, index=True)
+    officer_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    findings: Mapped[str] = mapped_column(Text, nullable=False)
+    action_taken: Mapped[str] = mapped_column(String(50), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    complaint: Mapped["ChallanComplaint"] = relationship("ChallanComplaint", back_populates="reviews")
+    officer: Mapped["User"] = relationship("User")

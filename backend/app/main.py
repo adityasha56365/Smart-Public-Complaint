@@ -4,9 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.v1.auth import router as auth_router
+from app.api.v1.challan import router as challan_router
 from app.api.v1.chat import router as chat_router
 from app.api.v1.complaints import router as complaints_router
 from app.api.v1.offices import router as offices_router
+from app.api.v1.transport import router as transport_router
 from app.api.v1.admin import (
     admin_router,
     audit_router,
@@ -30,6 +32,13 @@ async def lifespan(app: FastAPI):
             from app.db.session import Base, engine
             import app.models.models  # noqa: F401
             import sqlalchemy as sa
+            with engine.connect() as conn:
+                for val in ["transport_officer", "transport_supervisor"]:
+                    try:
+                        conn.execute(sa.text(f"ALTER TYPE userrole ADD VALUE IF NOT EXISTS '{val}';"))
+                        conn.commit()
+                    except Exception:
+                        pass
             Base.metadata.create_all(bind=engine)
             with engine.connect() as conn:
                 for col, col_type in [
@@ -44,6 +53,11 @@ async def lifespan(app: FastAPI):
                         pass
                 try:
                     conn.execute(sa.text("ALTER TABLE complaint_attachments ADD COLUMN IF NOT EXISTS file_data TEXT;"))
+                    conn.commit()
+                except Exception:
+                    pass
+                try:
+                    conn.execute(sa.text("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS challan_complaint_id BIGINT;"))
                     conn.commit()
                 except Exception:
                     pass
@@ -83,6 +97,8 @@ for pfx in ["/api/v1", "/v1"]:
     app.include_router(auth_router, prefix=pfx)
     app.include_router(chat_router, prefix=pfx)
     app.include_router(complaints_router, prefix=pfx)
+    app.include_router(challan_router, prefix=pfx)
+    app.include_router(transport_router, prefix=pfx)
     app.include_router(offices_router, prefix=pfx)
     app.include_router(dept_router, prefix=pfx)
     app.include_router(cat_router, prefix=pfx)

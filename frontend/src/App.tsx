@@ -3,14 +3,17 @@ import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { PreferencesProvider } from "./hooks/usePreferences";
 import RequireAuth from "./components/auth/RequireAuth";
 import RequireAdmin from "./components/auth/RequireAdmin";
+import RequireTransport from "./components/auth/RequireTransport";
 import AuthPage from "./pages/auth/AuthPage";
 import CitizenApp from "./pages/citizen/CitizenApp";
 import AdminApp from "./pages/admin/AdminApp";
+import TransportApp from "./pages/transport/TransportApp";
 
 /**
  * Root Application Routing
  * - /login: Citizen and Staff authentication
  * - /admin/*: Admin portal (requires admin/supervisor/officer role)
+ * - /transport-dashboard/*: Transport portal (requires transport_officer/transport_supervisor/admin role)
  * - /*: Citizen portal (requires authenticated user)
  */
 function AppRoutes() {
@@ -28,7 +31,16 @@ function AppRoutes() {
         path="/login"
         element={
           user ? (
-            <Navigate to={user.role === "citizen" ? "/" : "/admin"} replace />
+            <Navigate
+              to={
+                user.role === "citizen"
+                  ? "/"
+                  : user.role === "transport_officer" || user.role === "transport_supervisor"
+                  ? "/transport-dashboard"
+                  : "/admin"
+              }
+              replace
+            />
           ) : (
             <AuthPage />
           )
@@ -40,6 +52,14 @@ function AppRoutes() {
           <RequireAdmin>
             <AdminApp onLogout={handleLogout} />
           </RequireAdmin>
+        }
+      />
+      <Route
+        path="/transport-dashboard/*"
+        element={
+          <RequireTransport>
+            <TransportApp onLogout={handleLogout} />
+          </RequireTransport>
         }
       />
       <Route

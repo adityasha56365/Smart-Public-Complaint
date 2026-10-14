@@ -6,7 +6,7 @@ export type IconName =
   | "park" | "camera" | "pin" | "check" | "clock" | "building"
   | "shield" | "globe" | "help" | "settings" | "chart" | "users"
   | "filter" | "download" | "more" | "alert" | "warning" | "logout" | "x" | "star" | "eye" | "eye-off"
-  | "phone" | "navigation" | "hospital" | "flame" | "external-link";
+  | "phone" | "navigation" | "hospital" | "flame" | "external-link" | "traffic";
 
 const paths: Record<IconName, React.ReactNode> = {
   home: <><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></>,
@@ -49,6 +49,7 @@ const paths: Record<IconName, React.ReactNode> = {
   hospital: <><path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16M9 9h6M12 6v6"/></>,
   flame: <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>,
   "external-link": <><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></>,
+  traffic: <><rect x="5" y="2" width="14" height="20" rx="3"/><circle cx="12" cy="7" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="17" r="2"/></>,
 };
 
 export default function Icon({ name, size = 20 }: { name: IconName; size?: number }) {

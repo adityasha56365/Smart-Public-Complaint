@@ -65,7 +65,7 @@ class Settings(BaseSettings):
         return self.MAX_UPLOAD_SIZE_MB * 1024 * 1024
 
     class Config:
-        env_file = ".env"
+        env_file = (str(Path(__file__).resolve().parent.parent.parent / ".env"), ".env")
         env_file_encoding = "utf-8"
         extra = "ignore"
 
