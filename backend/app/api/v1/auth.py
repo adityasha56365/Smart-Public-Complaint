@@ -44,7 +44,14 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+
+    user_out = UserOut.model_validate(user)
+    user_out.access_token = create_access_token(user.id)
+    user_out.refresh_token = create_refresh_token(user.id)
+    user_out.token_type = "bearer"
+    user_out.user_role = user.role
+    user_out.user_id = user.id
+    return user_out
 
 
 @router.post("/login", response_model=TokenResponse)

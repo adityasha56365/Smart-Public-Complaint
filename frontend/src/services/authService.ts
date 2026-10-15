@@ -39,9 +39,31 @@ export function isTokenValid(token?: string | null): boolean {
   }
 }
 
+export interface RegisterResponse extends User {
+  access_token?: string;
+  refresh_token?: string;
+  token_type?: string;
+  user_role?: UserRole;
+  user_id?: number;
+}
+
 export const authService = {
-  async register(payload: RegisterPayload): Promise<User> {
-    const { data } = await api.post<User>("/auth/register", payload);
+  async register(payload: RegisterPayload): Promise<RegisterResponse> {
+    const { data } = await api.post<RegisterResponse>("/auth/register", payload);
+    if (data.access_token) {
+      localStorage.setItem("access_token", data.access_token);
+      if (data.refresh_token) {
+        localStorage.setItem("refresh_token", data.refresh_token);
+      }
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          id: data.user_id || data.id,
+          full_name: data.full_name,
+          role: data.user_role || data.role,
+        })
+      );
+    }
     return data;
   },
 

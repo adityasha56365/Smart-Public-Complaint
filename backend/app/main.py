@@ -20,67 +20,70 @@ from app.api.v1.admin import (
 from app.core.config import settings
 
 
-_schema_initialized = False
+def _init_db_schema():
+    """Ensure database schema tables and columns exist without blocking request processing."""
+    try:
+        from app.db.session import Base, engine
+        import app.models.models  # noqa: F401
+        import sqlalchemy as sa
+        with engine.connect() as conn:
+            for val in ["transport_admin", "transport_officer", "transport_supervisor"]:
+                try:
+                    conn.execute(sa.text(f"ALTER TYPE userrole ADD VALUE IF NOT EXISTS '{val}';"))
+                    conn.commit()
+                except Exception:
+                    pass
+        Base.metadata.create_all(bind=engine)
+        with engine.connect() as conn:
+            for col, col_type in [
+                ("contact_name", "VARCHAR(120)"),
+                ("contact_email", "VARCHAR(255)"),
+                ("contact_phone", "VARCHAR(20)"),
+            ]:
+                try:
+                    conn.execute(sa.text(f"ALTER TABLE complaints ADD COLUMN IF NOT EXISTS {col} {col_type};"))
+                    conn.commit()
+                except Exception:
+                    pass
+            for col, col_type in [
+                ("owner_name", "VARCHAR(120)"),
+                ("vehicle_type", "VARCHAR(50)"),
+                ("contact_name", "VARCHAR(120)"),
+                ("contact_email", "VARCHAR(255)"),
+                ("contact_phone", "VARCHAR(20)"),
+            ]:
+                try:
+                    conn.execute(sa.text(f"ALTER TABLE challan_complaints ADD COLUMN IF NOT EXISTS {col} {col_type};"))
+                    conn.commit()
+                except Exception:
+                    pass
+            try:
+                conn.execute(sa.text("ALTER TABLE challan_evidence ADD COLUMN IF NOT EXISTS evidence_type VARCHAR(50) DEFAULT 'vehicle_front';"))
+                conn.commit()
+            except Exception:
+                pass
+            try:
+                conn.execute(sa.text("ALTER TABLE complaint_attachments ADD COLUMN IF NOT EXISTS file_data TEXT;"))
+                conn.commit()
+            except Exception:
+                pass
+            try:
+                conn.execute(sa.text("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS challan_complaint_id BIGINT;"))
+                conn.commit()
+            except Exception:
+                pass
+    except Exception as exc:
+        print(f"Warning: Database auto-table creation failed: {exc}")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Ensure database schema tables and columns exist on startup (cached across warm lambda instances)."""
+    """Ensure database schema tables and columns exist in background on startup (cached across warm lambda instances)."""
     global _schema_initialized
     if not _schema_initialized:
-        try:
-            from app.db.session import Base, engine
-            import app.models.models  # noqa: F401
-            import sqlalchemy as sa
-            with engine.connect() as conn:
-                for val in ["transport_admin", "transport_officer", "transport_supervisor"]:
-                    try:
-                        conn.execute(sa.text(f"ALTER TYPE userrole ADD VALUE IF NOT EXISTS '{val}';"))
-                        conn.commit()
-                    except Exception:
-                        pass
-            Base.metadata.create_all(bind=engine)
-            with engine.connect() as conn:
-                for col, col_type in [
-                    ("contact_name", "VARCHAR(120)"),
-                    ("contact_email", "VARCHAR(255)"),
-                    ("contact_phone", "VARCHAR(20)"),
-                ]:
-                    try:
-                        conn.execute(sa.text(f"ALTER TABLE complaints ADD COLUMN IF NOT EXISTS {col} {col_type};"))
-                        conn.commit()
-                    except Exception:
-                        pass
-                for col, col_type in [
-                    ("owner_name", "VARCHAR(120)"),
-                    ("vehicle_type", "VARCHAR(50)"),
-                    ("contact_name", "VARCHAR(120)"),
-                    ("contact_email", "VARCHAR(255)"),
-                    ("contact_phone", "VARCHAR(20)"),
-                ]:
-                    try:
-                        conn.execute(sa.text(f"ALTER TABLE challan_complaints ADD COLUMN IF NOT EXISTS {col} {col_type};"))
-                        conn.commit()
-                    except Exception:
-                        pass
-                try:
-                    conn.execute(sa.text("ALTER TABLE challan_evidence ADD COLUMN IF NOT EXISTS evidence_type VARCHAR(50) DEFAULT 'vehicle_front';"))
-                    conn.commit()
-                except Exception:
-                    pass
-                try:
-                    conn.execute(sa.text("ALTER TABLE complaint_attachments ADD COLUMN IF NOT EXISTS file_data TEXT;"))
-                    conn.commit()
-                except Exception:
-                    pass
-                try:
-                    conn.execute(sa.text("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS challan_complaint_id BIGINT;"))
-                    conn.commit()
-                except Exception:
-                    pass
-            _schema_initialized = True
-        except Exception as exc:
-            print(f"Warning: Database auto-table creation failed: {exc}")
+        _schema_initialized = True
+        import threading
+        threading.Thread(target=_init_db_schema, daemon=True).start()
     yield
 
 
@@ -101,7 +104,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|.*\.vercel\.app)(:\d+)?",
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

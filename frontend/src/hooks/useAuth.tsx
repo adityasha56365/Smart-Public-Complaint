@@ -16,7 +16,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string | undefined, phone: string | undefined, password: string) => Promise<AuthUser>;
-  register: (fullName: string, email: string | undefined, phone: string | undefined, password: string) => Promise<void>;
+  register: (fullName: string, email: string | undefined, phone: string | undefined, password: string) => Promise<AuthUser>;
   logout: () => void;
   updateUser: (updated: Partial<AuthUser>) => void;
   refreshUser: () => Promise<AuthUser | null>;
@@ -27,7 +27,7 @@ const defaultAuthContext: AuthContextValue = {
   isAuthenticated: false,
   isLoading: false,
   login: async () => ({ id: 0, full_name: "", role: "citizen" as UserRole }),
-  register: async () => {},
+  register: async () => ({ id: 0, full_name: "", role: "citizen" as UserRole }),
   logout: () => {},
   updateUser: () => {},
   refreshUser: async () => null,
@@ -104,9 +104,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return authUser;
   }, []);
 
-  const register = useCallback(async (fullName: string, email?: string, phone?: string, password?: string) => {
-    await authService.register({ full_name: fullName, email, phone, password: password! });
-  }, []);
+  const register = useCallback(
+    async (fullName: string, email?: string, phone?: string, password?: string): Promise<AuthUser> => {
+      const res = await authService.register({ full_name: fullName, email, phone, password: password! });
+      const authUser: AuthUser = {
+        id: res.user_id || res.id,
+        full_name: res.full_name,
+        role: res.user_role || res.role,
+        email: res.email || email,
+        phone: res.phone || phone,
+      };
+      if (res.access_token) {
+        setUser(authUser);
+        return authUser;
+      }
+      return await login(email, phone, password);
+    },
+    [login]
+  );
 
   const updateUser = useCallback((updated: Partial<AuthUser>) => {
     setUser(prev => {

@@ -73,6 +73,11 @@ class UserOut(BaseModel):
     is_active: bool
     department_id: Optional[int]
     created_at: datetime
+    access_token: Optional[str] = None
+    refresh_token: Optional[str] = None
+    token_type: Optional[str] = "bearer"
+    user_role: Optional[UserRole] = None
+    user_id: Optional[int] = None
 
     model_config = {"from_attributes": True}
 

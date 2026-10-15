@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
+import { warmUpBackend } from "../../services/api";
+import type { AxiosError } from "axios";
 import Icon from "../../components/common/Icon";
 import Brand from "../../components/common/Brand";
-import Spinner from "../../components/common/Spinner";
 import ErrorBanner from "../../components/common/ErrorBanner";
 
 export default function AuthPage() {
@@ -15,26 +16,35 @@ export default function AuthPage() {
   const [accepted, setAccepted] = useState(false);
   const [form, setForm] = useState({ fullName: "", email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
-  const [readOnly, setReadOnly] = useState(true);
 
-  // Clear form inputs and error whenever switching modes or loading the page
+  // Pre-warm backend immediately when visiting the auth page
   useEffect(() => {
-    setForm({ fullName: "", email: "", password: "" });
-    setError("");
-    setAccepted(false);
-    setShowPassword(false);
-    setReadOnly(true);
-  }, [mode]);
+    warmUpBackend();
+  }, []);
 
   const switchMode = (next: "login" | "register") => {
     setMode(next);
-    setForm({ fullName: "", email: "", password: "" });
+    // Keep email so user doesn't have to retype if they clicked the wrong tab
+    setForm(prev => ({ ...prev, password: "", fullName: next === "login" ? "" : prev.fullName }));
     setError("");
-    setReadOnly(true);
   };
 
-  const unlockInputs = () => {
-    if (readOnly) setReadOnly(false);
+  const redirectUser = (authUser: { role: string }) => {
+    if (
+      authUser.role === "transport_admin" ||
+      authUser.role === "transport_officer" ||
+      authUser.role === "transport_supervisor"
+    ) {
+      navigate("/transport-admin");
+    } else if (
+      authUser.role === "admin" ||
+      authUser.role === "supervisor" ||
+      authUser.role === "officer"
+    ) {
+      navigate("/admin");
+    } else {
+      navigate("/");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,50 +74,43 @@ export default function AuthPage() {
     try {
       if (mode === "login") {
         const authUser = await login(trimmedEmail, undefined, password);
-        if (
-          authUser.role === "transport_admin" ||
-          authUser.role === "transport_officer" ||
-          authUser.role === "transport_supervisor"
-        ) {
-          navigate("/transport-admin");
-        } else if (
-          authUser.role === "admin" ||
-          authUser.role === "supervisor" ||
-          authUser.role === "officer"
-        ) {
-          navigate("/admin");
-        } else {
-          navigate("/");
-        }
+        redirectUser(authUser);
       } else {
-        await register(trimmedFullName, trimmedEmail, undefined, password);
-        // Auto-login after register
-        const authUser = await login(trimmedEmail, undefined, password);
-        if (
-          authUser.role === "transport_admin" ||
-          authUser.role === "transport_officer" ||
-          authUser.role === "transport_supervisor"
-        ) {
-          navigate("/transport-admin");
-        } else if (
-          authUser.role === "admin" ||
-          authUser.role === "supervisor" ||
-          authUser.role === "officer"
-        ) {
-          navigate("/admin");
-        } else {
-          navigate("/");
-        }
+        const authUser = await register(trimmedFullName, trimmedEmail, undefined, password);
+        redirectUser(authUser);
       }
     } catch (err: unknown) {
       let msg = "";
-      const data = (err as { response?: { data?: { detail?: string | Array<{ msg: string }> } } })?.response?.data;
+      const axiosErr = err as AxiosError<{ detail?: string | Array<{ msg: string }>; message?: string }>;
+      const data = axiosErr?.response?.data;
+      const status = axiosErr?.response?.status;
+      const code = axiosErr?.code;
+      const errMsg = axiosErr?.message || "";
+
       if (typeof data?.detail === "string") {
         msg = data.detail;
       } else if (Array.isArray(data?.detail) && data.detail.length > 0) {
         msg = data.detail.map((d) => d.msg).join(", ");
+      } else if (typeof data?.message === "string") {
+        msg = data.message;
       }
-      setError(msg || "Unable to complete request. Please verify your details and try again.");
+
+      if (!msg) {
+        if (code === "ECONNABORTED" || errMsg.toLowerCase().includes("timeout")) {
+          msg = "The server is waking up from sleep. Please click again now.";
+        } else if (status === 401) {
+          msg = "Invalid email or password. Please verify your details and try again.";
+        } else if (status === 409) {
+          msg = "This email is already registered. Please switch to Sign In.";
+        } else if (status === 502 || status === 503 || status === 504) {
+          msg = "Server is starting up. Please wait a moment and try again.";
+        } else if (errMsg === "Network Error" || code === "ERR_NETWORK" || !axiosErr?.response) {
+          msg = "Unable to connect to the server. The backend may be waking up, please try again.";
+        } else {
+          msg = "Unable to complete request. Please verify your details and try again.";
+        }
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -181,10 +184,7 @@ export default function AuthPage() {
                   id="input-fullname"
                   required
                   placeholder="Enter your full name"
-                  autoComplete="off"
-                  readOnly={readOnly}
-                  onFocus={unlockInputs}
-                  onClick={unlockInputs}
+                  autoComplete="name"
                   value={form.fullName}
                   onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))}
                 />
@@ -198,10 +198,7 @@ export default function AuthPage() {
                 name="civic_user_email"
                 required
                 placeholder="name@example.com"
-                autoComplete="off"
-                readOnly={readOnly}
-                onFocus={unlockInputs}
-                onClick={unlockInputs}
+                autoComplete="email"
                 value={form.email}
                 onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
               />
@@ -216,10 +213,7 @@ export default function AuthPage() {
                   required
                   minLength={8}
                   placeholder="At least 8 characters"
-                  autoComplete="new-password"
-                  readOnly={readOnly}
-                  onFocus={unlockInputs}
-                  onClick={unlockInputs}
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
                   value={form.password}
                   onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                 />
@@ -240,7 +234,16 @@ export default function AuthPage() {
                 <span>I agree to the <button type="button">Terms of Service</button> and <button type="button">Privacy Policy</button>. I understand how my information will be used.</span>
               </label>
             )}
-            {error && <ErrorBanner message={error} />}
+            {error && (
+              <ErrorBanner
+                message={error}
+                onRetry={
+                  error.toLowerCase().includes("registered") || error.toLowerCase().includes("sign in")
+                    ? () => switchMode("login")
+                    : undefined
+                }
+              />
+            )}
             <button
               id="btn-auth-submit"
               type="submit"
