@@ -76,14 +76,20 @@ def _init_db_schema():
         print(f"Warning: Database auto-table creation failed: {exc}")
 
 
+_schema_initialized = False
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Ensure database schema tables and columns exist in background on startup (cached across warm lambda instances)."""
     global _schema_initialized
-    if not _schema_initialized:
-        _schema_initialized = True
-        import threading
-        threading.Thread(target=_init_db_schema, daemon=True).start()
+    try:
+        if not _schema_initialized:
+            _schema_initialized = True
+            import threading
+            threading.Thread(target=_init_db_schema, daemon=True).start()
+    except Exception as exc:
+        print(f"Warning: database schema initialization error on startup: {exc}")
     yield
 
 
