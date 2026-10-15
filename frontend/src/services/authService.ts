@@ -1,6 +1,6 @@
 /** Auth service — login, register, logout, token management. */
 import api from "./api";
-import type { TokenResponse, User } from "../types";
+import type { TokenResponse, User, UserRole } from "../types";
 
 export interface LoginPayload {
   email?: string;
