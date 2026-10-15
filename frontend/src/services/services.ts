@@ -98,8 +98,9 @@ export const complaintService = {
     }
 
     // Deduplicate in-flight identical requests (e.g. Home and ComplaintsPage requesting simultaneously)
-    if (inFlightRequests[key]) {
-      return inFlightRequests[key];
+    const inFlight = inFlightRequests[key];
+    if (inFlight) {
+      return inFlight;
     }
 
     const promise = (async () => {
