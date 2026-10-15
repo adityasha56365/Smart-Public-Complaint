@@ -5,6 +5,7 @@ import Spinner from "../../components/common/Spinner";
 import ErrorBanner from "../../components/common/ErrorBanner";
 import AdminMetric from "./AdminMetric";
 import { adminService, complaintService } from "../../services/services";
+import appEvents from "../../services/appEvents";
 import type { Complaint, DashboardStats } from "../../types";
 
 export default function AdminOverview({
@@ -24,10 +25,11 @@ export default function AdminOverview({
 
   useEffect(() => {
     let isCancelled = false;
-    const load = () => {
+    const load = (silent = false) => {
+      if (!silent && !stats) setLoading(true);
       Promise.all([
-        adminService.stats(),
-        complaintService.list({ page: 1, page_size: 5 }),
+        adminService.stats(true),
+        complaintService.list({ page: 1, page_size: 5 }, true),
       ])
         .then(([s, c]) => {
           if (!isCancelled) {
@@ -42,14 +44,46 @@ export default function AdminOverview({
         });
     };
 
-    load();
+    load(!!stats);
 
-    const onFocus = () => load();
+    // 1. Immediately reflect new complaints submitted by citizens
+    const unsubCreate = appEvents.on<Complaint>("complaint:created", (newComplaint) => {
+      setComplaints((prev) => {
+        const withoutNew = prev.filter((c) => c.id !== newComplaint.id);
+        return [newComplaint, ...withoutNew].slice(0, 5);
+      });
+      setStats((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          total: prev.total + 1,
+          new_today: prev.new_today + 1,
+          pending_review: prev.pending_review + 1,
+        };
+      });
+    });
+
+    // 2. React to status or assignment updates
+    const unsubUpdate = appEvents.on<Complaint>("complaint:updated", (updated) => {
+      setComplaints((prev) =>
+        prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c))
+      );
+      load(true);
+    });
+
+    const unsubInvalidate = appEvents.on("complaints:invalidate", () => {
+      load(true);
+    });
+
+    const onFocus = () => load(true);
     window.addEventListener("focus", onFocus);
-    const interval = setInterval(load, 45000);
+    const interval = setInterval(() => load(true), 20000);
 
     return () => {
       isCancelled = true;
+      unsubCreate();
+      unsubUpdate();
+      unsubInvalidate();
       window.removeEventListener("focus", onFocus);
       clearInterval(interval);
     };

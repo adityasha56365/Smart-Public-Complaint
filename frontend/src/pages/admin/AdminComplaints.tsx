@@ -3,6 +3,7 @@ import Icon from "../../components/common/Icon";
 import Status from "../../components/common/Status";
 import Spinner from "../../components/common/Spinner";
 import { complaintService } from "../../services/services";
+import appEvents from "../../services/appEvents";
 import { exportToCSV } from "../../utils/csvExport";
 import type { Complaint, PaginatedResponse } from "../../types";
 
@@ -30,7 +31,7 @@ export default function AdminComplaints({ openComplaint }: { openComplaint: (id:
         page_size: 20,
         search: search || undefined,
         status: statusFilter || undefined,
-      });
+      }, true);
       setData(res);
     } catch {
       /**/
@@ -40,11 +41,47 @@ export default function AdminComplaints({ openComplaint }: { openComplaint: (id:
   }, [page, search, statusFilter, data]);
 
   useEffect(() => {
-    fetchData();
+    fetchData(!!data);
+
+    // 1. Instantly display new complaints in the table
+    const unsubCreate = appEvents.on<Complaint>("complaint:created", (newComplaint) => {
+      setData((prev) => {
+        if (!prev) return null;
+        if (page === 1) {
+          const withoutNew = prev.items.filter((c) => c.id !== newComplaint.id);
+          return {
+            ...prev,
+            total: prev.total + 1,
+            items: [newComplaint, ...withoutNew].slice(0, 20),
+          };
+        }
+        return { ...prev, total: prev.total + 1 };
+      });
+    });
+
+    // 2. Reflect status / assignment updates
+    const unsubUpdate = appEvents.on<Complaint>("complaint:updated", (updated) => {
+      setData((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          items: prev.items.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)),
+        };
+      });
+    });
+
+    const unsubInvalidate = appEvents.on("complaints:invalidate", () => {
+      fetchData(true);
+    });
+
     const onFocus = () => fetchData(true);
     window.addEventListener("focus", onFocus);
-    const interval = setInterval(() => fetchData(true), 40000);
+    const interval = setInterval(() => fetchData(true), 20000);
+
     return () => {
+      unsubCreate();
+      unsubUpdate();
+      unsubInvalidate();
       window.removeEventListener("focus", onFocus);
       clearInterval(interval);
     };

@@ -1,5 +1,6 @@
 /** JanSahayak AI Chatbot API service. All AI calls go through the backend — no API keys in the browser. */
 import api from "./api";
+import appEvents from "./appEvents";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -67,6 +68,8 @@ export const chatService = {
 
   async submitDraft(draft: ComplaintDraft): Promise<DraftSubmitResult> {
     const { data } = await api.post<DraftSubmitResult>("/chat/complaint-draft/submit", draft);
+    appEvents.emit("complaint:created", data);
+    appEvents.emit("complaints:invalidate");
     return data;
   },
 };

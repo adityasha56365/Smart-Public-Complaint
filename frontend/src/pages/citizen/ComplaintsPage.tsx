@@ -5,6 +5,7 @@ import Spinner from "../../components/common/Spinner";
 import ErrorBanner from "../../components/common/ErrorBanner";
 import { usePreferences } from "../../hooks/usePreferences";
 import { complaintService } from "../../services/services";
+import appEvents from "../../services/appEvents";
 import { getAttachmentUrl } from "../../services/api";
 import type { Complaint } from "../../types";
 
@@ -20,7 +21,8 @@ export default function ComplaintsPage({ openDetail, openReport }: { openDetail:
   const [statusFilter, setStatusFilter] = useState("all");
   const [total, setTotal] = useState(() => cached?.total || complaints.length);
 
-  const fetchComplaints = useCallback(async () => {
+  const fetchComplaints = useCallback(async (silent = false) => {
+    if (!silent && complaints.length === 0) setLoading(true);
     try {
       const params: Record<string, string | number> = { page: 1, page_size: 50 };
       if (statusFilter !== "all") {
@@ -30,20 +32,48 @@ export default function ComplaintsPage({ openDetail, openReport }: { openDetail:
           params.status = statusFilter;
         }
       }
-      if (search) params.search = search;
+      if (search.trim()) params.search = search.trim();
       const res = await complaintService.list(params as Parameters<typeof complaintService.list>[0]);
       const items = Array.isArray(res?.items) ? res.items : [];
       setComplaints(items);
       setTotal(res?.total ?? items.length);
+      setError("");
     } catch {
-      setError("Failed to load complaints.");
+      if (complaints.length === 0) setError("Failed to load complaints.");
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter]);
+  }, [search, statusFilter, complaints.length]);
 
   useEffect(() => {
-    fetchComplaints();
+    fetchComplaints(complaints.length > 0);
+
+    // 1. Immediately reflect newly submitted complaints without refresh
+    const unsubCreate = appEvents.on<Complaint>("complaint:created", (newComplaint) => {
+      setComplaints((prev) => {
+        const withoutNew = prev.filter((c) => c.id !== newComplaint.id);
+        return [newComplaint, ...withoutNew];
+      });
+      setTotal((prev) => prev + 1);
+    });
+
+    // 2. React to status or assignment updates
+    const unsubUpdate = appEvents.on<Complaint>("complaint:updated", (updated) => {
+      setComplaints((prev) =>
+        prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c))
+      );
+    });
+
+    // 3. Silent revalidate
+    const unsubInvalidate = appEvents.on("complaints:invalidate", () => {
+      fetchComplaints(true);
+    });
+
+    return () => {
+      unsubCreate();
+      unsubUpdate();
+      unsubInvalidate();
+    };
   }, [fetchComplaints]);
 
   const iconMap: Record<string, IconName> = {

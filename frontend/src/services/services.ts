@@ -1,5 +1,6 @@
 /** Complaint, category, department, notification, and admin API services. */
 import api from "./api";
+import appEvents from "./appEvents";
 import type {
   AuditLog,
   Category,
@@ -43,10 +44,11 @@ export interface ComplaintFilters {
 }
 
 // ---------------------------------------------------------------------------
-// Complaints Cache (in-memory SWR to prevent 0-flashing on page switches)
+// Complaints Cache (in-memory SWR with reactive event emission)
 // ---------------------------------------------------------------------------
 let complaintsCache: Record<string, { data: PaginatedResponse<Complaint>; timestamp: number }> = {};
-const CACHE_TTL_MS = 60000; // 60s cache
+const inFlightRequests: Record<string, Promise<PaginatedResponse<Complaint>>> = {};
+const CACHE_TTL_MS = 90000; // 90s cache for fast module switching
 
 export const complaintService = {
   getCached(filters: ComplaintFilters = {}): PaginatedResponse<Complaint> | null {
@@ -64,15 +66,54 @@ export const complaintService = {
 
   async create(payload: CreateComplaintPayload): Promise<Complaint> {
     const { data } = await api.post<Complaint>("/complaints", payload);
-    complaintsCache = {}; // invalidate cache so new complaint appears immediately
+
+    // 1. Proactively inject newly created complaint into all relevant cached views
+    Object.keys(complaintsCache).forEach((k) => {
+      const entry = complaintsCache[k];
+      if (entry && Array.isArray(entry.data.items)) {
+        if (!entry.data.items.some((item) => item.id === data.id)) {
+          entry.data.items = [data, ...entry.data.items];
+          entry.data.total = (entry.data.total || 0) + 1;
+        }
+      }
+    });
+
+    // 2. Invalidate stats cache so admin/citizen counters refresh
+    adminService.clearStatsCache();
+
+    // 3. Emit reactive event across application
+    appEvents.emit("complaint:created", data);
+    appEvents.emit("complaints:invalidate");
     return data;
   },
 
-  async list(filters: ComplaintFilters = {}): Promise<PaginatedResponse<Complaint>> {
+  async list(filters: ComplaintFilters = {}, forceRefresh = false): Promise<PaginatedResponse<Complaint>> {
     const key = JSON.stringify(filters);
-    const { data } = await api.get<PaginatedResponse<Complaint>>("/complaints", { params: filters });
-    complaintsCache[key] = { data, timestamp: Date.now() };
-    return data;
+
+    if (!forceRefresh) {
+      const hit = complaintsCache[key];
+      if (hit && Date.now() - hit.timestamp < CACHE_TTL_MS) {
+        return hit.data;
+      }
+    }
+
+    // Deduplicate in-flight identical requests (e.g. Home and ComplaintsPage requesting simultaneously)
+    if (inFlightRequests[key]) {
+      return inFlightRequests[key];
+    }
+
+    const promise = (async () => {
+      try {
+        const { data } = await api.get<PaginatedResponse<Complaint>>("/complaints", { params: filters });
+        complaintsCache[key] = { data, timestamp: Date.now() };
+        return data;
+      } finally {
+        delete inFlightRequests[key];
+      }
+    })();
+
+    inFlightRequests[key] = promise;
+    return promise;
   },
 
   async get(id: number): Promise<ComplaintDetail> {
@@ -86,13 +127,32 @@ export const complaintService = {
       reason,
       resolution_details: resolution,
     });
-    complaintsCache = {};
+
+    // Update in-memory cache directly
+    Object.keys(complaintsCache).forEach((k) => {
+      const entry = complaintsCache[k];
+      if (entry && Array.isArray(entry.data.items)) {
+        entry.data.items = entry.data.items.map((item) => (item.id === id ? { ...item, ...data } : item));
+      }
+    });
+
+    adminService.clearStatsCache();
+    appEvents.emit("complaint:updated", data);
     return data;
   },
 
   async assign(id: number, payload: { officer_id?: number; department_id?: number; notes?: string }): Promise<Complaint> {
     const { data } = await api.post<Complaint>(`/complaints/${id}/assign`, payload);
-    complaintsCache = {};
+
+    Object.keys(complaintsCache).forEach((k) => {
+      const entry = complaintsCache[k];
+      if (entry && Array.isArray(entry.data.items)) {
+        entry.data.items = entry.data.items.map((item) => (item.id === id ? { ...item, ...data } : item));
+      }
+    });
+
+    adminService.clearStatsCache();
+    appEvents.emit("complaint:updated", data);
     return data;
   },
 
@@ -107,7 +167,9 @@ export const complaintService = {
         }
       },
     });
+    // Invalidate so full attachments are fetched on next view
     complaintsCache = {};
+    appEvents.emit("complaints:invalidate");
     return data;
   },
 
@@ -309,6 +371,10 @@ let statsCache: { data: DashboardStats; timestamp: number } | null = null;
 let reportsCache: Record<number, { data: ReportSummary; timestamp: number }> = {};
 
 export const adminService = {
+  clearStatsCache() {
+    statsCache = null;
+  },
+
   getCachedStats(): DashboardStats | null {
     if (statsCache && Date.now() - statsCache.timestamp < 60000) {
       return statsCache.data;
@@ -316,7 +382,10 @@ export const adminService = {
     return null;
   },
 
-  async stats(): Promise<DashboardStats> {
+  async stats(forceRefresh = false): Promise<DashboardStats> {
+    if (!forceRefresh && statsCache && Date.now() - statsCache.timestamp < 60000) {
+      return statsCache.data;
+    }
     const { data } = await api.get<DashboardStats>("/admin/stats");
     statsCache = { data, timestamp: Date.now() };
     return data;

@@ -38,6 +38,8 @@ export default function CitizenApp() {
   }, [detailId, currentNav, t]);
 
   useEffect(() => {
+    // Pre-fetch complaints and notifications so module switching is instantaneous
+    complaintService.list({ page_size: 50 }).catch(() => {});
     notificationService
       .list()
       .then((ns) => setUnreadCount(ns.filter((n) => !n.is_read).length))
@@ -89,7 +91,11 @@ export default function CitizenApp() {
         ) : (
           <>
             <div style={{ display: active === "home" ? "block" : "none" }}>
-              <Home openReport={() => setReportOpen(true)} openDetail={setDetailId} />
+              <Home
+                openReport={() => setReportOpen(true)}
+                openDetail={setDetailId}
+                goToComplaints={() => handleTabChange("complaints")}
+              />
             </div>
             {(visitedTabs.has("complaints") || active === "complaints") && (
               <div style={{ display: active === "complaints" ? "block" : "none" }}>
@@ -131,7 +137,25 @@ export default function CitizenApp() {
           </button>
         ))}
       </nav>
-      {reportOpen && <ReportFlow close={() => setReportOpen(false)} />}
+      {reportOpen && (
+        <ReportFlow
+          close={() => setReportOpen(false)}
+          openDetail={(id) => {
+            setReportOpen(false);
+            setDetailId(id);
+          }}
+          goToComplaints={() => {
+            setReportOpen(false);
+            handleTabChange("complaints");
+          }}
+          onSuccess={() => {
+            notificationService
+              .list()
+              .then((ns) => setUnreadCount(ns.filter((n) => !n.is_read).length))
+              .catch(() => {});
+          }}
+        />
+      )}
       {langModalOpen && (
         <LanguageModal
           currentLanguage={language}

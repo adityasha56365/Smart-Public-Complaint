@@ -119,14 +119,25 @@ function createUserLocationPinIcon(): L.DivIcon {
 }
 
 export default function NearestPublicOffices() {
-  // State: Coordinates (defaults to central location while GPS resolves)
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number }>({
-    lat: 12.9716,
-    lng: 77.5946,
+  // State: Coordinates (defaults to cached or central location while GPS resolves)
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number }>(() => {
+    try {
+      const saved = sessionStorage.getItem("civic_user_loc");
+      if (saved) return JSON.parse(saved);
+    } catch { /**/ }
+    return { lat: 12.9716, lng: 77.5946 };
   });
-  const [gpsActive, setGpsActive] = useState<boolean>(false);
+  const [gpsActive, setGpsActive] = useState<boolean>(() => {
+    try {
+      return !!sessionStorage.getItem("civic_user_gps_active");
+    } catch { return false; }
+  });
   const [gpsLoading, setGpsLoading] = useState<boolean>(false);
-  const [locationName, setLocationName] = useState<string>("Detecting your location...");
+  const [locationName, setLocationName] = useState<string>(() => {
+    try {
+      return sessionStorage.getItem("civic_user_loc_name") || "Bengaluru Metro Area";
+    } catch { return "Bengaluru Metro Area"; }
+  });
 
   // Data & filters
   const initialCached = officeService.getCachedOffices(userLocation.lat, userLocation.lng, "all");
@@ -142,11 +153,9 @@ export default function NearestPublicOffices() {
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const routeLayerRef = useRef<L.Polyline | null>(null);
 
-  // 1. Initial Geolocation Detection
+  // 1. Non-blocking Geolocation Detection
   const detectLocation = () => {
-    setGpsLoading(true);
     if (!navigator.geolocation) {
-      setGpsLoading(false);
       setLocationName("Bengaluru Metro Area");
       return;
     }
@@ -154,49 +163,33 @@ export default function NearestPublicOffices() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
-        setUserLocation({ lat: latitude, lng: longitude });
+        const coords = { lat: latitude, lng: longitude };
+        setUserLocation(coords);
         setGpsActive(true);
         setGpsLoading(false);
-
-        // Reverse geocoding with fast 2s timeout so slow nominatim network never delays UI
         try {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 2000);
-          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=14`, {
-            headers: { "Accept-Language": "en" },
-            signal: controller.signal,
-          })
-            .then((r) => r.json())
-            .then((data) => {
-              clearTimeout(timer);
-              const suburb =
-                data.address?.suburb ||
-                data.address?.neighbourhood ||
-                data.address?.city_district ||
-                data.address?.city ||
-                data.address?.town ||
-                "Your Area";
-              const state = data.address?.state || "";
-              setLocationName(state ? `${suburb}, ${state}` : suburb);
-            })
-            .catch(() => {
-              setLocationName(`${latitude.toFixed(2)}°N, ${longitude.toFixed(2)}°E`);
-            });
-        } catch {
-          setLocationName(`${latitude.toFixed(2)}°N, ${longitude.toFixed(2)}°E`);
-        }
+          sessionStorage.setItem("civic_user_loc", JSON.stringify(coords));
+          sessionStorage.setItem("civic_user_gps_active", "true");
+        } catch { /**/ }
+
+        const name = `${latitude.toFixed(2)}°N, ${longitude.toFixed(2)}°E`;
+        setLocationName(name);
+        try { sessionStorage.setItem("civic_user_loc_name", name); } catch { /**/ }
       },
       () => {
         setGpsLoading(false);
         setGpsActive(false);
-        setLocationName("Bengaluru Metro Area");
       },
-      { enableHighAccuracy: false, timeout: 3500, maximumAge: 120000 }
+      { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 }
     );
   };
 
   useEffect(() => {
-    detectLocation();
+    // Run GPS resolution in idle time so Home page renders in 0ms
+    const timer = setTimeout(() => {
+      detectLocation();
+    }, 1000);
+    return () => clearTimeout(timer);
   }, []);
 
   // 2. Fetch nearest offices whenever location or category changes

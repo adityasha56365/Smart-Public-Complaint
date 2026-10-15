@@ -6,32 +6,69 @@ import ErrorBanner from "../../components/common/ErrorBanner";
 import { useAuth } from "../../hooks/useAuth";
 import { usePreferences } from "../../hooks/usePreferences";
 import { complaintService } from "../../services/services";
+import appEvents from "../../services/appEvents";
 import NearestPublicOffices from "../../components/offices/NearestPublicOffices";
 import type { Complaint } from "../../types";
 
-export default function Home({ openReport, openDetail }: { openReport: () => void; openDetail: (id: number) => void }) {
+export default function Home({
+  openReport,
+  openDetail,
+  goToComplaints,
+}: {
+  openReport: () => void;
+  openDetail: (id: number) => void;
+  goToComplaints?: () => void;
+}) {
   const { user } = useAuth();
   const { t } = usePreferences();
-  
-  // Use cached complaints if available to render instantly without 0-flicker
+
+  // Instant render from cache to avoid 0-flicker or spinner delay
   const cached = complaintService.getCached({ page_size: 50 }) || complaintService.getCached({ page: 1, page_size: 50 });
   const [complaints, setComplaints] = useState<Complaint[]>(() => cached?.items || []);
   const [loading, setLoading] = useState(() => complaints.length === 0);
   const [error, setError] = useState("");
 
-  const fetchComplaints = useCallback(async () => {
+  const fetchComplaints = useCallback(async (silent = false) => {
+    if (!silent && complaints.length === 0) setLoading(true);
     try {
       const res = await complaintService.list({ page_size: 50 });
       setComplaints(Array.isArray(res?.items) ? res.items : []);
+      setError("");
     } catch {
-      setError("Failed to load complaints.");
+      if (complaints.length === 0) setError("Failed to load complaints.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [complaints.length]);
 
   useEffect(() => {
-    fetchComplaints();
+    fetchComplaints(complaints.length > 0);
+
+    // 1. Instantly show newly submitted complaint without any page reload
+    const unsubCreate = appEvents.on<Complaint>("complaint:created", (newComplaint) => {
+      setComplaints((prev) => {
+        const withoutNew = prev.filter((c) => c.id !== newComplaint.id);
+        return [newComplaint, ...withoutNew];
+      });
+    });
+
+    // 2. React to status changes or assignment updates in real time
+    const unsubUpdate = appEvents.on<Complaint>("complaint:updated", (updated) => {
+      setComplaints((prev) =>
+        prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c))
+      );
+    });
+
+    // 3. Silent revalidate on invalidate signal
+    const unsubInvalidate = appEvents.on("complaints:invalidate", () => {
+      fetchComplaints(true);
+    });
+
+    return () => {
+      unsubCreate();
+      unsubUpdate();
+      unsubInvalidate();
+    };
   }, [fetchComplaints]);
 
   const now = new Date();
@@ -119,7 +156,7 @@ export default function Home({ openReport, openDetail }: { openReport: () => voi
               <span className="eyebrow">{t("stay_informed", "STAY INFORMED")}</span>
               <h3>{t("active_complaints", "Active complaints")}</h3>
             </div>
-            <button>{t("view_all", "View all")} <Icon name="arrow" size={17} /></button>
+            <button type="button" onClick={goToComplaints}>{t("view_all", "View all")} <Icon name="arrow" size={17} /></button>
           </div>
           <div className="complaint-list">
             {loading && <div style={{ padding: 20 }}><Spinner /></div>}

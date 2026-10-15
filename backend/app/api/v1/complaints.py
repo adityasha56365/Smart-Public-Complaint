@@ -186,24 +186,50 @@ def list_complaints(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = db.query(Complaint).options(
-        joinedload(Complaint.category),
-        selectinload(Complaint.attachments).defer(ComplaintAttachment.file_data),
-    )
+    filters = []
     # Citizens only see their own complaints
     if current_user.role == UserRole.citizen:
-        q = q.filter(Complaint.citizen_id == current_user.id)
+        filters.append(Complaint.citizen_id == current_user.id)
     if status:
-        q = q.filter(Complaint.status == status)
+        filters.append(Complaint.status == status)
     if category_id:
-        q = q.filter(Complaint.category_id == category_id)
+        filters.append(Complaint.category_id == category_id)
     if search:
-        q = q.filter(
-            Complaint.title.ilike(f"%{search}%") | Complaint.reference_number.ilike(f"%{search}%")
+        search_pattern = f"%{search}%"
+        filters.append(
+            Complaint.title.ilike(search_pattern) | Complaint.reference_number.ilike(search_pattern)
         )
-    total = q.count()
-    items = q.order_by(Complaint.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
-    return {"total": total, "page": page, "page_size": page_size, "items": [_complaint_to_out(c, request, include_attachment_data=False) for c in items]}
+
+    # Fast indexed scalar count without outer joins or subqueries
+    count_q = db.query(func.count(Complaint.id))
+    if filters:
+        count_q = count_q.filter(*filters)
+    total = count_q.scalar() or 0
+
+    # Fetch paginated items with necessary relations only
+    items_q = (
+        db.query(Complaint)
+        .options(
+            joinedload(Complaint.category),
+            selectinload(Complaint.attachments).defer(ComplaintAttachment.file_data),
+        )
+    )
+    if filters:
+        items_q = items_q.filter(*filters)
+
+    items = (
+        items_q.order_by(Complaint.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "items": [_complaint_to_out(c, request, include_attachment_data=False) for c in items],
+    }
 
 
 @router.get("/{complaint_id}", response_model=ComplaintDetail)

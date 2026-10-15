@@ -14,7 +14,17 @@ interface EvidenceItem {
   preview: string;
 }
 
-export default function ReportFlow({ close, onSuccess }: { close: () => void; onSuccess?: (ref: string, id: number) => void }) {
+export default function ReportFlow({
+  close,
+  onSuccess,
+  openDetail,
+  goToComplaints,
+}: {
+  close: () => void;
+  onSuccess?: (ref: string, id: number) => void;
+  openDetail?: (id: number) => void;
+  goToComplaints?: () => void;
+}) {
   const { t } = usePreferences();
   const [step, setStep] = useState(1);
   const [category, setCategory] = useState<number | null>(null);
@@ -26,7 +36,7 @@ export default function ReportFlow({ close, onSuccess }: { close: () => void; on
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
-  const [, setCreatedId] = useState<number | null>(null);
+  const [createdId, setCreatedId] = useState<number | null>(null);
   const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>([]);
   const [, setUploadProgress] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -560,8 +570,21 @@ export default function ReportFlow({ close, onSuccess }: { close: () => void; on
               <button onClick={copyRef}>{t("btn_copy", "Copy")}</button>
             </div>
             <div className="success-actions">
-              <button className="secondary-button" onClick={close}>{t("btn_return_home", "Return home")}</button>
-              <button className="primary-button" onClick={() => { close(); }}>{t("btn_view_complaint", "View complaint")} <Icon name="arrow" /></button>
+              <button type="button" className="secondary-button" onClick={close}>{t("btn_return_home", "Return home")}</button>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => {
+                  close();
+                  if (createdId && openDetail) {
+                    openDetail(createdId);
+                  } else if (goToComplaints) {
+                    goToComplaints();
+                  }
+                }}
+              >
+                {t("btn_view_complaint", "View complaint")} <Icon name="arrow" />
+              </button>
             </div>
           </div>
         )}

@@ -72,6 +72,16 @@ def _init_db_schema():
                 conn.commit()
             except Exception:
                 pass
+            for idx_sql in [
+                "CREATE INDEX IF NOT EXISTS ix_complaints_citizen_created_at ON complaints (citizen_id, created_at DESC);",
+                "CREATE INDEX IF NOT EXISTS ix_complaints_status_created_at ON complaints (status, created_at DESC);",
+                "CREATE INDEX IF NOT EXISTS ix_complaints_created_at_desc ON complaints (created_at DESC);",
+            ]:
+                try:
+                    conn.execute(sa.text(idx_sql))
+                    conn.commit()
+                except Exception:
+                    pass
     except Exception as exc:
         print(f"Warning: Database auto-table creation failed: {exc}")
 
