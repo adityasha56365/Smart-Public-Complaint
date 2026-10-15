@@ -17,7 +17,7 @@ import JanSahayakChat from "../../components/chat/JanSahayakChat";
 import InstallAppPopup from "../../components/common/InstallAppPopup";
 import { useAuth } from "../../hooks/useAuth";
 import { usePreferences } from "../../hooks/usePreferences";
-import { notificationService } from "../../services/services";
+import { complaintService, notificationService } from "../../services/services";
 
 export default function CitizenApp() {
   const { logout } = useAuth();
